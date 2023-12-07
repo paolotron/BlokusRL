@@ -3,8 +3,8 @@ import numpy as np
 from numpy import logical_and as np_and
 import gymnasium as gym
 from gymnasium import spaces
-from preprocessing_id import preprocess_id
-from preprocessing_action import preprocess_action
+from environments.preprocessing_id import preprocess_id
+from environments.preprocessing_action import preprocess_action
 from matplotlib import use as plt_use
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -27,8 +27,7 @@ class BlokusEnv(gym.Env):
         self.n_pieces = 21  # number of blokus pieces for each player
         self.n_variant = 8  # number of vairant for each piece, 4 rotation times 2 flip states by default
         self.n_pl = 4  # number of players during a game, by default is always 4
-        self.rot90_variant = [1, 2, 3, 0, 5, 6, 7,
-                              4]  # next variant when rotating 90 deg counter-clockwise, see preprocess_id.py
+        self.rot90_variant = [1, 2, 3, 0, 5, 6, 7, 4]  # next variant when rotating 90 deg counter-clockwise, see preprocess_id.py
 
         # resettable
         # invalid last move [0 - 4], valid move = 0, invalid move = [1 - 3], see next_state for details
@@ -78,7 +77,7 @@ class BlokusEnv(gym.Env):
         #   column position of the origin of the piece to play [0-d]
         #   piece to play [0-n]
         #   variant of the piece to play [0-7]
-        self.action_space = spaces.MultiBinary((self.action_dim,))
+        self.action_space = spaces.Discrete(self.action_dim)
         
         # pygame and rendering attributes
         assert render_mode is None or render_mode in self.metadata['render_modes']
@@ -98,9 +97,17 @@ class BlokusEnv(gym.Env):
         # returns the game board, hands, turn and action validity as seen by the active_player's POV
         return {'board': self.padded_board[self.pad : self.d+self.pad, self.pad : self.d+self.pad, self.active_pl],
                 'hands': self.player_hands[:,:, self.active_pl],
-                'turn': int(self.move_count/self.n_pl),
-                'invalid': self.invalid
+                'turn': np.array([int(self.move_count/self.n_pl)]),
+                'invalid': np.array([self.invalid])
             }
+        
+    
+    def _get_reward(self):
+        # returns reward: each action award -(remaining squares); +200 TBC in case of win condition
+        remaining_pieces_id = np.where(self.player_hands[self.active_pl, :, 0])[0]
+        position_square = self.piece_data[0]
+        count_pos_squares = self.piece_data[1]
+        return 0
         
     
     def _get_info(self):        
@@ -115,7 +122,7 @@ class BlokusEnv(gym.Env):
         # computes a simulation step, given an action and returns observation and info
         
         # decodes action, must be a boolean vector with a single element equal to 1, returns (row, col, piece, variant)
-        (row, col, p_id, var_id) = np.unravel_index(np.argmax(action), (self.d, self.d, self.n_pieces, self.n_variant))
+        (row, col, p_id, var_id) = np.unravel_index(action, (self.d, self.d, self.n_pieces, self.n_variant))
         r_id = row + self.pad
         c_id = col + self.pad
         
@@ -207,7 +214,7 @@ class BlokusEnv(gym.Env):
         observation = self._get_obs()
         info = self._get_info()
 
-        return observation, info
+        return observation, reward, terminated, truncated, info
 
     def reset(self, seed=None):
         # resets the environment and returns the first observation and info
@@ -331,7 +338,7 @@ def next_state(row, col, p_id, var_id, padded_board, player_id, player_hands, n_
     #   row:                [5 - 24] row of the piece origin in the playing board 
     #   col:                [5 - 24] column of the piece origin in the playing board 
     #   p_id:               [0 - 20] id of the blokus piece, see 'Blokus Pieces.xlsx'
-    #   var_id:              [0 - 7] id of the blokus piece variation, see 'Blokus Pieces.xlsx'
+    #   var_id:             [0 - 7] id of the blokus piece variation, see 'Blokus Pieces.xlsx'
     #   padded_board:       30 x 30 numpy array of the playing board, including padding
     #   player_id:          [0 - 3] id of the current player
     #   player_hands:       4 x 21 numpy array of the pieces in hand, boolean

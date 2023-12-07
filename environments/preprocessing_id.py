@@ -12,13 +12,13 @@ def preprocess_id():
     #   - indexes of attachment points
     #   - indexes of forbidden positions
     
-    if not os.path.isfile('pieces_data.pkl'):
+    if not os.path.isfile('environments\pieces_data.pkl'):
         
-        if not os.path.isfile('Blokus_Pieces.xlsx'):
+        if not os.path.isfile('environments\Blokus_Pieces.xlsx'):
             print('Error: file named Blokus_Pieces.xlsx cannot be found')
             return None
         
-        wb = xl.load_workbook('Blokus_Pieces.xlsx', data_only=True) # 
+        wb = xl.load_workbook('environments\Blokus_Pieces.xlsx', data_only=True) # 
         ws = wb['Pieces'] # worksheet
         d_cell = 11 # dimension of excel cell used
         n_pieces = 21 # number of blokus pieces (standard game)
@@ -77,13 +77,13 @@ def preprocess_id():
         
         # saving pieces data using pickle
         piece_data_tuple = (position_square, count_pos_squares, position_attach, count_pos_attach, position_forbid, count_pos_forbid)
-        with open('pieces_data.pkl', 'wb') as handle:
+        with open('environments\pieces_data.pkl', 'wb') as handle:
             pk.dump(piece_data_tuple, handle)
         pass
     
     else:
         # load pieces data
-        with open('pieces_data.pkl', 'rb') as handle:
+        with open('environments\pieces_data.pkl', 'rb') as handle:
             piece_data_tuple = pk.load(handle)
     
     # return pieces data

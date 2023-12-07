@@ -3,7 +3,7 @@ import numpy as np
 
 # original pieces must be defined in the first row of matrix in excel, the script then rotates/flips them
 
-wb = xl.load_workbook('Blokus_Pieces.xlsx', data_only=True) # workbook
+wb = xl.load_workbook('environments\Blokus_Pieces.xlsx', data_only=True) # workbook
 ws = wb['Pieces'] # worksheet
 d_cell = 11 # dimension of excel cell used
 n_pieces = 21 # number of blokus pieces (standard game)
@@ -39,5 +39,5 @@ for p_id in range(n_pieces):
             for j in range(d_cell): # columns
                 ws.cell(row=start_xl_row+i , column=start_xl_col+j).value = new_mat[i,j]
     
-wb.save('Blokus_Pieces.xlsx')
+wb.save('environments\Blokus_Pieces.xlsx')
     
