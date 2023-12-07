@@ -100,8 +100,8 @@ class BlokusEnv(gym.Env):
                 'turn': np.array([int(self.move_count/self.n_pl)]),
                 'invalid': np.array([self.invalid])
             }
-        
-    
+
+
     def _get_reward(self):
         # returns reward: each action award -(remaining squares); +200 TBC in case of win condition
         remaining_pieces_id = np.where(self.player_hands[self.active_pl, :, 0])[0]
@@ -332,22 +332,31 @@ def rot90_row_col(row, col, d):
 
 
 def next_state(row, col, p_id, var_id, padded_board, player_id, player_hands, n_players,
-               position_square, count_pos_squares, position_attach, count_pos_attach, position_forbid, count_pos_forbid):
-    
+               position_square, count_pos_squares, position_attach, count_pos_attach, position_forbid,
+               count_pos_forbid):
+    """
+    :param row: [5 - 24] row of the piece origin in the playing board
+    :param col: [5 - 24] column of the piece origin in the playing board
+    :param p_id: [0 - 20] id of the blokus piece, see 'Blokus Pieces.xlsx'
+    :param var_id: [0 - 7] id of the blokus piece variation, see 'Blokus Pieces.xlsx'
+    :param padded_board: 30 x 30 numpy array of the playing board, including padding
+    :param player_id: [0 - 3] id of the current player
+    :param player_hands: 4 x 21 numpy array of the pieces in hand, boolean
+    :param n_players: number of players, 4 by default
+    :param position_square: see preprocessing_id.py
+    :param count_pos_squares: see preprocessing_id.py
+    :param position_attach: see preprocessing_id.py
+    :param count_pos_attach: see preprocessing_id.py
+    :param position_forbid: see preprocessing_id.py
+    :param count_pos_forbid: see preprocessing_id.py
+    :return: invalid, padded_board, player_id, player_hands
+    invalid: is > 0 if the move is invalid move, 0 for valid moves
+    padded_board: updated board
+    player_id:updated active player
+    player_hands: updated player hands
+    """
+
     # input parameters with typical ranges:
-    #   row:                [5 - 24] row of the piece origin in the playing board 
-    #   col:                [5 - 24] column of the piece origin in the playing board 
-    #   p_id:               [0 - 20] id of the blokus piece, see 'Blokus Pieces.xlsx'
-    #   var_id:             [0 - 7] id of the blokus piece variation, see 'Blokus Pieces.xlsx'
-    #   padded_board:       30 x 30 numpy array of the playing board, including padding
-    #   player_id:          [0 - 3] id of the current player
-    #   player_hands:       4 x 21 numpy array of the pieces in hand, boolean
-    #   n_players:          number of players, 4 by default
-    #   position_square:    see preprocessing_id.py
-    #   count_pos_squares:  see preprocessing_id.py
-    #   position_attach:    see preprocessing_id.py
-    #   count_pos_attach:   see preprocessing_id.py
-    #   position_forbid:    see preprocessing_id.py
     #   count_pos_forbid:   see preprocessing_id.py
     #
     # output parameters:
@@ -358,12 +367,12 @@ def next_state(row, col, p_id, var_id, padded_board, player_id, player_hands, n_
     #
     # returns same board, same player_id, same player_hands if move is not valid, 
     # otherwise returns updated board, updated player_id, updated player_hands
-    
+
     # checks if piece is available
     if player_hands[player_id, p_id] == 0:
         # if piece already has been used -> invalid move
         return 4, padded_board, player_id, player_hands
-    
+
     # checks overlap with other pieces
     # occurs if at least one of the squares of the piece is different than zero
     c_sq = count_pos_squares[p_id, var_id]
@@ -372,7 +381,7 @@ def next_state(row, col, p_id, var_id, padded_board, player_id, player_hands, n_
     if np.any(padded_board[row + row_squares, col + col_squares]):
         # if there is overlap (any non-zero) -> invalid move
         return 3, padded_board, player_id, player_hands
-    
+
     # checks attachment
     # occurs if no attachment point overlap with pieces of the current player
     c_att = count_pos_attach[p_id, var_id]
