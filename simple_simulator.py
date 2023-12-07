@@ -39,11 +39,10 @@ for i in range(n_iter):
     row = np.random.randint(0, 19)
     col = np.random.randint(0, 19)
     p_id = np.random.randint(0, 21)
-    p_var = np.random.randint(0, 7)
+    var_id = np.random.randint(0, 7)
     state_param_list = []
-    state_param_list += [row + pad_size, col + pad_size, p_id, p_var, padded_board, player_id, player_hands, 4]
-    state_param_list += [position_square, count_pos_squares, position_attach, count_pos_attach, position_forbid,
-                         count_pos_forbid]
+    state_param_list += [row + pad_size, col + pad_size, p_id, var_id, padded_board, player_id, player_hands, 4]
+    state_param_list += [position_square, count_pos_squares, position_attach, count_pos_attach, position_forbid, count_pos_forbid]
     # compute next state
     state, padded_board, player_id, player_hands = next_state(*state_param_list)
     state_list.append(state)

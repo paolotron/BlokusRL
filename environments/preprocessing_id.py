@@ -3,13 +3,16 @@ import openpyxl as xl
 import numpy as np
 import pickle as pk
 
-# must be run after preprocessing_excel.py
-# calculates indexes of pieces and attachment points
-
 
 def preprocess_id():
     
-    if not os.path.isfile('pieces_data.pickle'):
+    # must be run after preprocessing_excel.py
+    # calculates indexes of pieces position, relative to their origin
+    #   - indexes of piece squares
+    #   - indexes of attachment points
+    #   - indexes of forbidden positions
+    
+    if not os.path.isfile('pieces_data.pkl'):
         
         if not os.path.isfile('Blokus_Pieces.xlsx'):
             print('Error: file named Blokus_Pieces.xlsx cannot be found')
@@ -74,13 +77,13 @@ def preprocess_id():
         
         # saving pieces data using pickle
         piece_data_tuple = (position_square, count_pos_squares, position_attach, count_pos_attach, position_forbid, count_pos_forbid)
-        with open('pieces_data.pickle', 'wb') as handle:
+        with open('pieces_data.pkl', 'wb') as handle:
             pk.dump(piece_data_tuple, handle)
         pass
     
     else:
         # load pieces data
-        with open('pieces_data.pickle', 'rb') as handle:
+        with open('pieces_data.pkl', 'rb') as handle:
             piece_data_tuple = pk.load(handle)
     
     # return pieces data
