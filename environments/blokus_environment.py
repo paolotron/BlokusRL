@@ -98,7 +98,7 @@ class BlokusEnv(gym.Env):
     def _get_obs(self):
         # returns the game board, hands, turn and action validity as seen by the active_player's POV
         multibin_playing_board = self.padded_board[self.pad : self.d+self.pad, self.pad : self.d+self.pad, self.active_pl]
-        multibin_playing_board = np.vstack((np.zeros((1, self.n_pl)), np.eye(self.n_pl)))[multibin_playing_board]
+        multibin_playing_board = np.vstack((np.zeros((1, self.n_pl), dtype=int), np.eye(self.n_pl, dtype=int)))[multibin_playing_board]
         return {
                     'board': multibin_playing_board,
                     'hands': self.player_hands[:,:, self.active_pl],
