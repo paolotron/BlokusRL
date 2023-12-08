@@ -58,6 +58,20 @@ class BlokusEnv(gym.Env):
         self.valid_to_invalid_act_pl = None
         # boolean mask of the actve_player actions that are valid as their first move (from their POV)
         self.always_invalid = None
+                
+        # resets game board with padding (to do preprocess_action only in __init__() and not in reset())
+        self.padded_board = np.ones((self.d + 2*self.pad, self.d + 2*self.pad, self.n_pl), dtype=int)*5 # (unplayable area marked with 5)
+        self.padded_board[self.pad:-self.pad,self.pad:-self.pad,:] = 0 # only internal 20 x 20 is playable (marked with 0)
+        # player id: 1, 2, 3, 4 starting attachment point (corner outside of 20 x 20 playing board)      
+        for i in range(self.n_pl):
+            # places first attachment points in the corners just outside the playing board (player_color = player_id + 1)
+            self.padded_board[self.pad-1,       self.pad-1,         i] = 1 # start attachment point player 1, for each POV
+            self.padded_board[self.pad-1,       self.d+self.pad,    i] = 2 # start attachment point player 2, for each POV
+            self.padded_board[self.d+self.pad,  self.d+self.pad,    i] = 3 # start attachment point player 3, for each POV
+            self.padded_board[self.d+self.pad,  self.pad-1,         i] = 4 # start attachment point player 4, for each POV
+        # preprocess action validity
+        self.action_data = preprocess_action(self.padded_board, self.pad, self.n_pieces, self.n_variant, *self.piece_data)
+        (self.always_invalid, self.invalid_to_maybe_valid, self.valid_to_invalid, self.valid_to_invalid_act_pl, self.valid_at_start) = self.action_data
         
         # observation:
         #   board is the playing board where 0 = empty, 1-4 = player square
@@ -261,10 +275,7 @@ class BlokusEnv(gym.Env):
             self.padded_board[self.d+self.pad,  self.d+self.pad,    i] = 3 # start attachment point player 3, for each POV
             self.padded_board[self.d+self.pad,  self.pad-1,         i] = 4 # start attachment point player 4, for each POV
 
-        # preprocess action validity
-        self.action_data = preprocess_action(self.padded_board, self.pad, self.n_pieces, self.n_variant, *self.piece_data)
-        (self.always_invalid, self.invalid_to_maybe_valid, self.valid_to_invalid, self.valid_to_invalid_act_pl, self.valid_at_start) = self.action_data
-        # initialize valid starting action for each player, from their POV only (this means they are the same for all players)
+       # initialize valid starting action for each player, from their POV only (this means they are the same for all players)
         for i in range(self.n_pl):
             self.valid_act_mask[i, :] = self.valid_at_start
 
