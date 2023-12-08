@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
 from numpy import logical_and as np_and
+from numpy import logical_or as np_or
 import gymnasium as gym
 from gymnasium import spaces
 from environments.preprocessing_id import preprocess_id
@@ -16,7 +17,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 class BlokusEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 8}
 
-    def __init__(self, render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=200, invalid_penalty=-100):
+    def __init__(self, render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=1000, invalid_penalty=-1000):
 
         # computes the blokus pieces data
         self.piece_data = preprocess_id()
@@ -38,6 +39,8 @@ class BlokusEnv(gym.Env):
         self.move_count = 0
         # active player number, can be 0,1,2,3 with the default 4 players
         self.active_pl = int(self.move_count / self.n_pl)
+        # boolean array, in the i-th is True if the i-th player can no longer place pieces
+        self.dead = np.zeros((self.n_pl, 1), dtype='bool')
         # player hand, 4 x 21 boolean array (1 = in hand, 0 = already placed), as seen by the 4 player
         self.player_hands = np.ones((self.n_pl, self.n_pieces, self.n_pl), dtype='bool')
         # game board, with padding = 5 to avoid checking for out of bounds exceptions, one for each player
@@ -58,6 +61,8 @@ class BlokusEnv(gym.Env):
         self.valid_to_invalid_act_pl = None
         # boolean mask of the actve_player actions that are valid as their first move (from their POV)
         self.always_invalid = None
+        # boolean mask that collects all the invalid moves due to placement and always invalid, is updated every step
+        self.invalid_history = np.zeros((self.n_pl, self.action_dim), dtype='bool')
                 
         # resets game board with padding (to do preprocess_action only in __init__() and not in reset())
         self.padded_board = np.ones((self.d + 2*self.pad, self.d + 2*self.pad, self.n_pl), dtype=int)*5 # (unplayable area marked with 5)
@@ -107,18 +112,19 @@ class BlokusEnv(gym.Env):
         rgb_col = np.array(rgb_col) / 255
         self.cmap = [
             ListedColormap(np.vstack((rgb_col[0, :], np.roll(rgb_col[1:self.n_pl + 1], -i, axis=0), rgb_col[-1, :])))
-            for i in range(self.n_pl)]
+            for i in range(self.n_pl)
+        ]
 
     def _get_obs(self):
         # returns the game board, hands, turn and action validity as seen by the active_player's POV
         multibin_playing_board = self.padded_board[self.pad : self.d+self.pad, self.pad : self.d+self.pad, self.active_pl]
         multibin_playing_board = np.vstack((np.zeros((1, self.n_pl), dtype=np.int8), np.eye(self.n_pl, dtype=np.int8)))[multibin_playing_board]
         return {
-                    'board': multibin_playing_board,
-                    'hands': self.player_hands[:,:, self.active_pl],
-                    'turn': np.array([int(self.move_count/self.n_pl)]),
-                    'invalid': np.array([self.invalid])
-            }
+            'board': multibin_playing_board,
+            'hands': self.player_hands[:,:, self.active_pl],
+            'turn': np.array([int(self.move_count/self.n_pl)]),
+            'invalid': np.array([self.invalid])
+        }
 
     def _get_reward(self):
         # returns reward: 
@@ -136,8 +142,8 @@ class BlokusEnv(gym.Env):
         return np.sum(count_pos_squares[placed_pieces_id, 0])  
     
     def _get_terminated(self):
-        # returns True when no player can place any more pieces
-        return bool(~np.any(self.player_hands[self.active_pl, :, :]))
+        # returns True when no valid move remains
+        return bool(~np.any(self.valid_act_mask))
         
     def _get_truncated(self):
         # returns True when an invalid action is performed
@@ -145,10 +151,12 @@ class BlokusEnv(gym.Env):
     
     def _get_info(self):        
         # returns some additional game state information   
-        return {'valid_masks': self.valid_act_mask,
-                'move_count': self.move_count,
-                'active_player': self.active_pl
-            }        
+        return {
+            'valid_masks': self.valid_act_mask,
+            'active_player': self.active_pl,
+            'active_player_valid_mask': self.valid_act_mask[self.active_pl, :],
+            'move_count': self.move_count
+        }        
     
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info
@@ -170,20 +178,12 @@ class BlokusEnv(gym.Env):
             self.invalid, self.padded_board[:, :, pl_pov], next_pl, self.player_hands[:, :, pl_pov] = next_state(
                 r_id, c_id, p_id, var_id, self.padded_board[:, :, pl_pov], active_pl_from_pov,
                 self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
+            
             if self.invalid:
                 # print('INVALID ACTION')
-                if first_valid:
-                    print('PROBLEM')
-                    pass
-                break  # invalid move, should be negatively rewarded
-            else:
-                first_valid = True
-                # print("HERE")                
+                # self.show_boards([], False)
                 # self.show_piece(p_id, var_id)
-                # self.show_boards()
-                # plt.show()
-                # plt.close('all')
-                pass 
+                break  # invalid move, with action masking should not be possible
             
             # rotates 90 deg counter-clockwise row and col
             r_id, c_id = rot90_row_col(r_id, c_id, self.d + 2*self.pad)
@@ -201,7 +201,7 @@ class BlokusEnv(gym.Env):
             #   (2) action of placed piece -> invalid (only for the active_player, the one who placed the piece)
             #   (3) valid, maybe valid -> invalid (only for the active player)
             #   (4) valid, maybe valid -> invalid (for every player)
-            #   (5) all actions -> always invalid (for every player)
+            #   (5) valid, maybe valid -> invalid from placement history (for every player, includes the (2), (3), (4) of past moves, and always_invalid)
             # this is done for every square of the piece placed in the last action
             
             position_square = self.piece_data[0]
@@ -211,24 +211,21 @@ class BlokusEnv(gym.Env):
             row_squares = position_square[p_id, var_id, 0:c_sq, 0] + row
             col_squares = position_square[p_id, var_id, 0:c_sq, 1] + col
             # (1)
-            for row_r, col_r in zip(row_squares, col_squares):
-                curr_val_action = self.valid_act_mask[self.active_pl, :] # temp variable 
-                curr_val_action[np_and(curr_val_action == False, self.invalid_to_maybe_valid[row_r, col_r, :])] = True # (1) 
-                self.valid_act_mask[self.active_pl, :] = curr_val_action # saves the partial results of the new boolean mask    
+            for row_r, col_r in zip(row_squares, col_squares):                
+                # set to True the previously invalid actions where invalid_to_maybe_valid for this [row_r, col_r] is True
+                self.valid_act_mask[self.active_pl, np_and(~self.valid_act_mask[self.active_pl, :], self.invalid_to_maybe_valid[row_r, col_r, :])] = True # (1)
             # (2), (3), (4), (5)
             for row_r, col_r in zip(row_squares, col_squares):
                 for _ in range(self.n_pl):
                     
-                    curr_val_action = self.valid_act_mask[pl_pov, :] # temp variable           
                     if pl_pov == self.active_pl:
-                        used_p_id = np.where(self.player_hands[0,:,pl_pov] == False)[0] # all the pieces already used by the player
-                        curr_val_action = np.reshape(curr_val_action, (self.d, self.d, self.n_pieces, self.n_variant)) # 1D -> 4D
-                        curr_val_action[:, :, used_p_id, :] = False # (2)
-                        curr_val_action = np.reshape(curr_val_action, (-1,)) # 4D -> 1D
-                        curr_val_action[np_and(curr_val_action, self.valid_to_invalid_act_pl[row_r, col_r, :])] = False # (3)            
-                    curr_val_action[np_and(curr_val_action, self.valid_to_invalid[row_r, col_r, :])] = False # (4)
-                    curr_val_action[self.always_invalid] = False # (5)
-                    self.valid_act_mask[pl_pov, :] = curr_val_action # saves the new valid action mask for the i-th player
+                        # used_p_id = np.where(self.player_hands[0,:,pl_pov] == False)[0] # all the pieces already used by the player
+                        self.invalid_history = np.reshape(self.invalid_history, (self.n_pl, self.d, self.d, self.n_pieces, self.n_variant)) # 2D -> 5D
+                        self.invalid_history[pl_pov, :, :, p_id, :] = True # (2)
+                        self.invalid_history = np.reshape(self.invalid_history, (self.n_pl, -1)) # 5D -> 2D
+                        self.invalid_history[pl_pov, self.valid_to_invalid_act_pl[row_r, col_r, :]] = True # (3)
+                    self.invalid_history[pl_pov, self.valid_to_invalid[row_r, col_r, :]] = True # (4)
+                    self.valid_act_mask[pl_pov, self.invalid_history[pl_pov, :]] = False # (5)
                     
                     # rotates 90 deg counter-clockwise row_r and col_r when changing POV
                     row_r, col_r = rot90_row_col(row_r, col_r, self.d)
@@ -275,9 +272,10 @@ class BlokusEnv(gym.Env):
             self.padded_board[self.d+self.pad,  self.d+self.pad,    i] = 3 # start attachment point player 3, for each POV
             self.padded_board[self.d+self.pad,  self.pad-1,         i] = 4 # start attachment point player 4, for each POV
 
-       # initialize valid starting action for each player, from their POV only (this means they are the same for all players)
-        for i in range(self.n_pl):
-            self.valid_act_mask[i, :] = self.valid_at_start
+        # initialize valid starting action for each player, from their POV only (this means they are the same for all players)
+        self.valid_act_mask[:, :] = self.valid_at_start
+        # initialize hystory of invali actions for each player, from their POV only (this means they are the same for all players)
+        self.invalid_history[:, :] = self.always_invalid
 
         observation = self._get_obs()
         info = self._get_info()
