@@ -6,13 +6,12 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.env_util import Monitor
 from environments.blokus_environment import BlokusEnv
 from environments.SelfPlayBlokusEnv import SelfPlayBlokusEnv
-from stable_baselines3.dqn import DQN
 
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.envs import InvalidActionEnvDiscrete
 from sb3_contrib.common.maskable.evaluation import evaluate_policy
 
-from policy import RandomPolicy
+from policy import RandomPolicy, BlokusSeer
 
 
 def main(n_steps=10):
@@ -21,6 +20,7 @@ def main(n_steps=10):
     env = SelfPlayBlokusEnv(p2=player, p3=player, p4=player)
 
     model = MaskablePPO(policy='MultiInputPolicy',
+                        policy_kwargs={'features_extractor_class': BlokusSeer},
                         n_steps=100,
                         env=env,
                         learning_rate=1e-4,
@@ -35,6 +35,6 @@ def main(n_steps=10):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument('')
+    #parser.add_argument('n_steps')
     args = parser.parse_args()
     main()

@@ -18,5 +18,7 @@ class SelfPlayBlokusEnv(BlokusEnv):
         obs, _, _, _, _ = super().step(action)
         action = self.p4.predict(obs, mask=self.action_masks())
         obs, _, terminated, truncated, info = super().step(action)
+        if self.dead[0]:
+            terminated = True
         return obs, reward, terminated, truncated, info
 

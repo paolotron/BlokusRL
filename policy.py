@@ -23,30 +23,29 @@ class ResidualBlock(nn.Module):
 
 
 class BlokusSeer(BaseFeaturesExtractor):
-    def __init__(self, observation_space: gym.spaces.Dict, num_cnn_blocks=3, hidden_dim=128):
-        super().__init__(observation_space, features_dim=4)
-
+    def __init__(self, observation_space: gym.spaces.Dict, num_cnn_blocks=3, features_dim=128):
+        super().__init__(observation_space, features_dim=features_dim)
         self.cnn_backbone = nn.Sequential(
-            nn.Conv2d(4, hidden_dim, 3, padding=1, stride=1),
+            nn.Conv2d(4, features_dim // 2, 3, padding=1, stride=1),
             nn.ReLU()
         )
         for i in range(num_cnn_blocks):
-            self.cnn_backbone.append(ResidualBlock(hidden_dim=hidden_dim))
+            self.cnn_backbone.append(ResidualBlock(hidden_dim=features_dim//2))
         self.cnn_backbone.append(nn.AdaptiveMaxPool2d((1, 1)))
 
         self.hand_processor = nn.Sequential(
-            nn.Linear(21, 32),
+            nn.Linear(21, features_dim // 2),
             nn.ReLU(),
-            nn.Linear(32, 32),
+            nn.Linear(features_dim // 2, features_dim // 2),
             nn.ReLU(),
         )
 
     def forward(self, observation):
-        board = observation['board']
-        hand = observation['hand']
+        board = observation['board'].permute(0, 3, 1, 2)
+        hand = observation['hands']
         vis_feat = self.cnn_backbone(board).flatten(start_dim=1)
-        hand_feat = self.hand_processor(hand).flatten(start_dim=1)
-        feats = torch.cat(vis_feat, hand_feat)
+        hand_feat = self.hand_processor(hand).mean(-2).flatten(start_dim=1)
+        feats = torch.concatenate([vis_feat, hand_feat], dim=1)
         return feats
 
 

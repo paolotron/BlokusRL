@@ -137,22 +137,22 @@ class BlokusEnv(gym.Env):
         }
 
     def _get_reward(self):
-        # returns the reward summing the following contributions: 
-        #   (1) invalid_reward (<< 0) in case of invalid move
-        #   (2) dead_reward (< 0) in case of a dead player
-        #   (3) win_reward (>> 0) in case of win condition (all pieces placed or (last move is valid and all are dead))
-        #   (4) sum of placed squares (> 0) in every other case       
-        
+        # returns the reward summing the following contributions:
+        # (0) invalid move (<<0)
+        # (1) win_reward (>> 0) in case of win condition (all pieces placed or all dead except for active player)
+        # (2) dead_reward (<<0) move_leaves_no_valid (< 0) in case of a dead player
+        # (3) sum of placed blocks or current placed block
+
         rew = 0
         if self.invalid:
-            rew += self.invalid_reward # (1)
+            rew += self.invalid_reward  # (1)
         if self.dead[self.active_pl]:
-            rew += self.dead_reward # (2)
+            rew += self.dead_reward  # (2)
         placed_pieces_id = np.where(~self.player_hands[self.active_pl, :, 0])
         if len(placed_pieces_id) == self.n_pieces or (not self.invalid and np.all(self.dead)):
-            rew += self.win_reward # (3)
+            rew += self.win_reward  # (3)
         count_pos_squares = self.piece_data[1]  # number of squares in each piece
-        rew += np.sum(count_pos_squares[placed_pieces_id, 0]) # (4)
+        rew += np.sum(count_pos_squares[placed_pieces_id, 0])  # (4)
         return rew
 
     def _get_terminated(self):
@@ -178,8 +178,8 @@ class BlokusEnv(gym.Env):
 
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, if the player is dead skips the action
-        
-        self.invalid = 5 # if at the end of step invalid = 5 the player did not take any action because it was dead        
+
+        self.invalid = 5  # if at the end of step invalid = 5 the player did not take any action because it was dead
         if not self.dead[self.active_pl]:
 
             # decodes action, must be a boolean vector with a single element equal to 1, returns (row, col, piece, variant)
@@ -244,7 +244,7 @@ class BlokusEnv(gym.Env):
                         if pl_pov == self.active_pl:
                             # used_p_id = np.where(self.player_hands[0,:,pl_pov] == False)[0] # all the pieces already used by the player
                             self.invalid_history = np.reshape(self.invalid_history, (
-                            self.n_pl, self.d, self.d, self.n_pieces, self.n_variant))  # 2D -> 5D
+                                self.n_pl, self.d, self.d, self.n_pieces, self.n_variant))  # 2D -> 5D
                             self.invalid_history[pl_pov, :, :, p_id, :] = True  # (2)
                             self.invalid_history = np.reshape(self.invalid_history, (self.n_pl, -1))  # 5D -> 2D
                             self.invalid_history[pl_pov, self.valid_to_invalid_act_pl[row_r, col_r, :]] = True  # (3)
@@ -337,7 +337,7 @@ class BlokusEnv(gym.Env):
         else:
             plt.ioff()  # prevents the display of plots
 
-        for i, ax in zip([0, 1, 3, 2], axs.flat):            
+        for i, ax in zip([0, 1, 3, 2], axs.flat):
             # compute current score (without win bonuses)
             placed_pieces_id = np.where(~self.player_hands[i, :, 0])
             count_pos_squares = self.piece_data[1]
