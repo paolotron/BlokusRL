@@ -161,7 +161,7 @@ class BlokusEnv(gym.Env):
             'move_count': self.move_count
         }   
         
-    def get_masks(self):
+    def action_masks(self):
         # return the mask of the valid action of the active player as an array of bool (True = valid action)
         return self.valid_act_mask[self.active_pl, :]
     
