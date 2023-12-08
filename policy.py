@@ -19,6 +19,7 @@ class ResidualBlock(nn.Module):
         y = self.conv1(x)
         y = self.relu(y)
         y = self.conv2(y)
+        y = self.relu(y)
         return y + x
 
 
@@ -34,7 +35,7 @@ class BlokusSeer(BaseFeaturesExtractor):
         self.cnn_backbone.append(nn.AdaptiveMaxPool2d((1, 1)))
 
         self.hand_processor = nn.Sequential(
-            nn.Linear(21, features_dim // 2),
+            nn.Linear(21 * 4, features_dim // 2),
             nn.ReLU(),
             nn.Linear(features_dim // 2, features_dim // 2),
             nn.ReLU(),
@@ -44,7 +45,7 @@ class BlokusSeer(BaseFeaturesExtractor):
         board = observation['board'].permute(0, 3, 1, 2)
         hand = observation['hands']
         vis_feat = self.cnn_backbone(board).flatten(start_dim=1)
-        hand_feat = self.hand_processor(hand).mean(-2).flatten(start_dim=1)
+        hand_feat = self.hand_processor(hand.flatten(start_dim=1)).flatten(start_dim=1)
         feats = torch.concatenate([vis_feat, hand_feat], dim=1)
         return feats
 
