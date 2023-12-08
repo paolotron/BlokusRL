@@ -133,7 +133,7 @@ class BlokusEnv(gym.Env):
             # all pieces placed is a win condition for the player
             return self.win_reward
         count_pos_squares = self.piece_data[1] # number of squares in each piece
-        return np.sum(count_pos_squares[remaining_pieces_id])    
+        return -np.sum(count_pos_squares[remaining_pieces_id, 0])  
     
     def _get_terminated(self):
         # returns True when no player can place any more pieces
@@ -171,7 +171,7 @@ class BlokusEnv(gym.Env):
                 r_id, c_id, p_id, var_id, self.padded_board[:, :, pl_pov], active_pl_from_pov,
                 self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
             if self.invalid:
-                print('INVALID ACTION')
+                # print('INVALID ACTION')
                 if first_valid:
                     print('PROBLEM')
                     pass
