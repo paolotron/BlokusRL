@@ -66,7 +66,7 @@ class BlokusEnv(gym.Env):
         #   invalid is a flag for the validity of the played action (0 = valid, 1-3 = invalid)
         self.observation_space = spaces.Dict(
             {
-                'board': spaces.MultiBinary((self.d, self.d, self.n_pl+1)),
+                'board': spaces.MultiBinary((self.d, self.d, self.n_pl)),
                 'hands': spaces.MultiBinary((self.n_pl, self.n_pieces)),
                 'turn': spaces.Box(0, self.n_pieces - 1, dtype=int),
                 'invalid': spaces.Box(0, 4, dtype=int)
@@ -99,10 +99,11 @@ class BlokusEnv(gym.Env):
         # returns the game board, hands, turn and action validity as seen by the active_player's POV
         multibin_playing_board = self.padded_board[self.pad : self.d+self.pad, self.pad : self.d+self.pad, self.active_pl]
         multibin_playing_board = np.vstack((np.zeros((1, self.n_pl)), np.eye(self.n_pl)))[multibin_playing_board]
-        return {'board': multibin_playing_board,
-                'hands': self.player_hands[:,:, self.active_pl],
-                'turn': np.array([int(self.move_count/self.n_pl)]),
-                'invalid': np.array([self.invalid])
+        return {
+                    'board': multibin_playing_board,
+                    'hands': self.player_hands[:,:, self.active_pl],
+                    'turn': np.array([int(self.move_count/self.n_pl)]),
+                    'invalid': np.array([self.invalid])
             }
 
     def _get_reward(self):
@@ -157,7 +158,6 @@ class BlokusEnv(gym.Env):
                 self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
             if self.invalid:
                 print('INVALID ACTION')
-                # TODO: truncated, out of bounds
                 if first_valid:
                     print('PROBLEM')
                     pass
