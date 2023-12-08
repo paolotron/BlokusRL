@@ -6,10 +6,7 @@ from stable_baselines3.dqn import DQN
 
 def main(n_steps=10):
     env = BlokusEnv()
-    env.reset()
-    env.observation_space.sample()
-    model = DQN(policy='MultiInputPolicy', env=env, learning_rate=1e-4, batch_size=256)
-    check_env(env)
+    model = DQN(policy='MultiInputPolicy', env=env, learning_rate=1e-4, batch_size=256, verbose=True)
     model.learn(100, progress_bar=True)
 
 
