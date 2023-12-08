@@ -30,7 +30,7 @@ class BlokusSeer(BaseFeaturesExtractor):
         self.cnn_backbone.append(nn.AdaptiveMaxPool2d((1, 1)))
 
         self.hand_processor = nn.Sequential(
-            nn.Linear(20, 32),
+            nn.Linear(21, 32),
             nn.ReLU(),
             nn.Linear(32, 32),
             nn.ReLU(),

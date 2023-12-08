@@ -215,7 +215,7 @@ class BlokusEnv(gym.Env):
                 curr_val_action = self.valid_act_mask[self.active_pl, :] # temp variable 
                 curr_val_action[np_and(curr_val_action == False, self.invalid_to_maybe_valid[row_r, col_r, :])] = True # (1) 
                 self.valid_act_mask[self.active_pl, :] = curr_val_action # saves the partial results of the new boolean mask    
-            # (2), (3), (4), (5)          
+            # (2), (3), (4), (5)
             for row_r, col_r in zip(row_squares, col_squares):
                 for _ in range(self.n_pl):
                     
