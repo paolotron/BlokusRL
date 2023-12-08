@@ -11,13 +11,13 @@ def preprocess_id():
     #   - indexes of piece squares
     #   - indexes of attachment points
     #   - indexes of forbidden positions
-    pieces_file = Path('./file.npz')
+    pieces_file = Path('.environments/preprocessed_pieces.npz')
     reference_file = Path('environments/Blokus_Pieces.xlsx')
 
     if not os.path.isfile(pieces_file):
 
         if not os.path.isfile(Path('environments/Blokus_Pieces.xlsx')):
-            print('Error: file named Blokus_Pieces.xlsx cannot be found')
+            raise Exception('Error: file named Blokus_Pieces.xlsx cannot be found')
             return None
 
         wb = xl.load_workbook(reference_file, data_only=True)  #

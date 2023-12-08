@@ -40,6 +40,7 @@ def preprocess_action(padded_board, pad, n_p, n_v,
             
         if np.any(np.logical_or(row_out_bounds, col_out_bounds)):
             # if action is always invalid it has no effect on invalid_to_maybe_valid, valid_to_invalid
+            # TODO: dictionary from valid action to (r_id, c_id, p_id, var_id), with reduced dimension of action space
             always_invalid[a_id] = True
         else:
             

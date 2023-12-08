@@ -9,7 +9,7 @@ def main():
     # ----- INPUT -----
     
     # 1 for human rendering and 0 for no rendering
-    human_mode = 1
+    human_mode = 0
     # number of consecutive games to play
     n_games = 1
     # square playing board dimension
@@ -41,11 +41,11 @@ def main():
         state_list = [] # list of action validity
         # max iterations
         n_iter = int(blokus_game.n_pieces*blokus_game.n_pl)
-        n_valid = np.zeros((n_iter, 5)) # counter for invalid actions
+        n_valid = np.zeros((n_iter, 6)) # counter for invalid actions
         t_0 = tm.time() # for timing
         term = False # terminated condition
 
-        for i in range(n_iter):
+        for i in range(n_iter*4):
             
             # admissible actions ids
             act_id = np.where(valid_masks[active_pl,:] == True)[0]

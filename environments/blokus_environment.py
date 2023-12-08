@@ -1,4 +1,5 @@
 import pygame
+import warnings as wr
 import numpy as np
 from numpy import logical_and as np_and
 from numpy import logical_or as np_or
@@ -36,6 +37,8 @@ class BlokusEnv(gym.Env):
         self.dead_reward = dead_reward  # [< 0] penalty for being dead early
 
         # resettable
+        # True when the game ends (win condition)
+        self.end_game = False
         # invalid last move [0 - 4], valid move = 0, invalid move = [1 - 3], see next_state for details
         self.invalid = 0
         # number of moves completed, counting all players
@@ -138,26 +141,31 @@ class BlokusEnv(gym.Env):
 
     def _get_reward(self):
         # returns the reward summing the following contributions:
-        # (0) invalid move (<<0)
+        # (0) invalid_reward (<< 0) in case of invalid move
         # (1) win_reward (>> 0) in case of win condition (all pieces placed or all dead except for active player)
-        # (2) dead_reward (<<0) move_leaves_no_valid (< 0) in case of a dead player
-        # (3) sum of placed blocks or current placed block
+        # (2) dead_reward (< 0) in case the active player made its last move or the active player is dead (simplyfies to active player is dead)
+        # (3) sum of placed blocks (< 0) in every other case (can be changed from 'sum of placed blocks' to 'current placed block')
 
-        rew = 0
         if self.invalid:
-            rew += self.invalid_reward  # (1)
+            return self.invalid_reward  # (0)
+        
+        placed_pieces_id = np.where(~self.player_hands[self.active_pl, :, 0])        
+        win_mask = np.ones((self.n_pl,), dtype='bool')
+        win_mask[self.active_pl] = False
+        if (len(placed_pieces_id) == self.n_pieces) or np.all(self.dead == win_mask):
+            # TODO: better tie breakers
+            self.end_game = True
+            return self.win_reward  # (1)  
+            
         if self.dead[self.active_pl]:
-            rew += self.dead_reward  # (2)
-        placed_pieces_id = np.where(~self.player_hands[self.active_pl, :, 0])
-        if len(placed_pieces_id) == self.n_pieces or (not self.invalid and np.all(self.dead)):
-            rew += self.win_reward  # (3)
+            return self.dead_reward  # (2)  
+              
         count_pos_squares = self.piece_data[1]  # number of squares in each piece
-        rew += np.sum(count_pos_squares[placed_pieces_id, 0])  # (4)
-        return rew
+        return np.sum(count_pos_squares[placed_pieces_id, 0])  # (3)
 
     def _get_terminated(self):
-        # returns True when no valid move remains (when all players are dead)
-        return bool(~np.any(self.valid_act_mask))
+        # returns True in case of win condition (all pieces placed or all dead except for active player) or every player is dead
+        return bool(self.end_game or np.all(self.dead))
 
     def _get_truncated(self):
         # returns True when an invalid action is performed
@@ -200,10 +208,9 @@ class BlokusEnv(gym.Env):
                     self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
 
                 if self.invalid:
-                    # print('INVALID ACTION')
-                    # self.show_boards([], False)
-                    # self.show_piece(p_id, var_id)
-                    break  # invalid move, with action masking should not be possible
+                    # invalid move, with action masking should not be possible
+                    wr.warn('Invalid move played. Use action masking to play valid moves.')
+                    break 
 
                 # rotates 90 deg counter-clockwise row and col
                 r_id, c_id = rot90_row_col(r_id, c_id, self.d + 2 * self.pad)
@@ -259,12 +266,8 @@ class BlokusEnv(gym.Env):
                 # check if the players are dead
                 self.dead = ~np.any(self.valid_act_mask, axis=-1)
 
-        # get return informations
-        observation = self._get_obs()
+        # calculates reward before updating active player and move count  
         reward = self._get_reward()
-        terminated = self._get_terminated()
-        truncated = self._get_truncated()
-        info = self._get_info()
 
         # in case of a dead active player or a valid move 
         if self.dead[self.active_pl] or not self.invalid:
@@ -276,14 +279,22 @@ class BlokusEnv(gym.Env):
             # renders only valid moves or moves of dead players
             if self.render_mode == 'human':
                 self._render_frame()
-
+                
+        # get return information after updating the active player
+        terminated = self._get_terminated()
+        truncated = self._get_truncated()
+        observation = self._get_obs()
+        info = self._get_info()
+        
         return observation, reward, terminated, truncated, info
 
     def reset(self, seed=None):
         # resets the environment and returns the first observation and info
-
+        
         # seeds self.np_random
         super().reset(seed=seed)
+        # resets end game flag
+        self.end_game = False
         # resets invalid move flag to valid move
         self.invalid = 0
         # resets move count to 0
