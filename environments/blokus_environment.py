@@ -137,21 +137,23 @@ class BlokusEnv(gym.Env):
         }
 
     def _get_reward(self):
-        # returns reward: 
+        # returns the reward summing the following contributions: 
         #   (1) invalid_reward (<< 0) in case of invalid move
         #   (2) dead_reward (< 0) in case of a dead player
         #   (3) win_reward (>> 0) in case of win condition (all pieces placed)
         #   (4) sum of placed squares (> 0) in every other case       
-
+        
+        rew = 0
         if self.invalid:
-            return self.invalid_reward  # (1)
+            rew += self.invalid_reward # (1)
         if self.dead[self.active_pl]:
-            return self.dead_reward  # (2)
+            rew += self.dead_reward # (2)
         placed_pieces_id = np.where(~self.player_hands[self.active_pl, :, 0])
         if len(placed_pieces_id) == self.n_pieces:
-            return self.win_reward  # (3)
+            rew += self.win_reward # (3)
         count_pos_squares = self.piece_data[1]  # number of squares in each piece
-        return np.sum(count_pos_squares[placed_pieces_id, 0])  # (4)
+        rew += np.sum(count_pos_squares[placed_pieces_id, 0]) # (4)
+        return rew
 
     def _get_terminated(self):
         # returns True when no valid move remains (when all players are dead)
