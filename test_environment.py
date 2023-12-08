@@ -1,8 +1,12 @@
+import time as tm
+t_0 = tm.time() # for timing
 from environments import blokus_environment as be
 import numpy as np
 import matplotlib.pyplot as plt
 import time as tm
-
+# time estimation
+elapsed = tm.time() - t_0
+print('Elapsed time for import: %f s\n' % elapsed)
 
 def main():
     
@@ -25,16 +29,25 @@ def main():
     # seeds the numpy random number generator
     np.random.seed(np_seed)
 
+    t_0 = tm.time() # for timing
     # initializes the environment
     if human_mode:
         blokus_game = be.BlokusEnv(render_mode='human', d_board=d_board, win_width=win_width, win_height=win_height)
     else:
         blokus_game = be.BlokusEnv(render_mode=None, d_board=d_board)
+    # time estimation
+    elapsed = tm.time() - t_0
+    print('Elapsed time for init: %f s\n' % elapsed)
 
     for _ in range(n_games):
         
+        t_0 = tm.time() # for timing
         # resets the environment
         obs, info = blokus_game.reset(seed=np_seed)
+        # time estimation
+        elapsed = tm.time() - t_0
+        print('Elapsed time for reset: %f s\n' % elapsed)
+        
         valid_masks = info['valid_masks'] # boolean mask of each player's valid action
         active_pl = info['active_player'] # active player
 

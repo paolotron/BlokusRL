@@ -11,7 +11,10 @@ def preprocess_id():
     #   - indexes of piece squares
     #   - indexes of attachment points
     #   - indexes of forbidden positions
-    pieces_file = Path('.environments/preprocessed_pieces.npz')
+    
+    # input file
+    pieces_file = Path('environments/preprocessed_pieces.npz')
+    # output file
     reference_file = Path('environments/Blokus_Pieces.xlsx')
 
     if not os.path.isfile(pieces_file):
@@ -79,7 +82,7 @@ def preprocess_id():
                             # updating counter
                             count_pos_forbid[p_id, v_id] = count + 1
 
-        # saving pieces data using pickle
+        # saves pieces data using pickle
         piece_data_tuple = {
             'position_square': position_square,
             'count_pos_squares': count_pos_squares,
@@ -88,12 +91,12 @@ def preprocess_id():
             'position_forbid': position_forbid,
             'count_pos_forbid': count_pos_forbid
             }
-        np.savez('./file', **piece_data_tuple)
+        np.savez(pieces_file, **piece_data_tuple)
 
     else:
-        # load pieces data
-        piece_data_tuple = np.load('./file.npz')
+        # loads pieces data
+        piece_data_tuple = np.load(pieces_file)
     piece_data_tuple = tuple(piece_data_tuple.values())
 
-    # return pieces data
+    # returns pieces data
     return piece_data_tuple
