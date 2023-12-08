@@ -8,9 +8,10 @@ def main():
     
     # ----- INPUT -----
     
-    human_mode = 0 # 1 for rendering and 0 for no rendering
-    # plays n_iter moves
-    n_iter = int(1e5)
+    # 1 for human rendering and 0 for no rendering
+    human_mode = 1
+    # number of consecutive games to play
+    n_games = 1
     # square playing board dimension
     d_board = 20
     # rendering window dimension (px)
@@ -30,48 +31,57 @@ def main():
     else:
         blokus_game = be.BlokusEnv(render_mode=None, d_board=d_board)
 
-    # boolean mask of the action space for each player, indicating valid actions from the active_player's POV
-    valid_act_mask = np.zeros((blokus_game.n_pl, blokus_game.action_dim), dtype='bool')
-
-    # resets the environment
-    obs, info = blokus_game.reset(seed=np_seed)
-    valid_masks = info['valid_masks'] # boolean mask of each player's valid action
-    active_pl = info['active_player'] # active player
-
-    state_list = [] # list of action validity
-    n_valid = np.zeros((n_iter,5)) # counter for invalid actions
-    t_0 = tm.time() # for timing
-
-    for i in range(n_iter):
+    for _ in range(n_games):
         
-        # admissible actions ids
-        act_id = np.where(valid_masks[active_pl,:] == True)[0]
-        # number of admissible actions
-        n_act = len(act_id)
-        # random admissible action
-        adm_a_id = np.random.randint(0, n_act)
-        # actual action id
-        action = act_id[adm_a_id]
-        
-        # simulation step
-        obs, rew, term, trunc, info = blokus_game.step(action)
+        # resets the environment
+        obs, info = blokus_game.reset(seed=np_seed)
         valid_masks = info['valid_masks'] # boolean mask of each player's valid action
         active_pl = info['active_player'] # active player
-        
-        # saving state
-        state = obs['invalid']
-        state_list.append(state)
-        # saving validity counters
-        if i != 0:
-            n_valid[i,:] = n_valid[i-1,:]
-            n_valid[i,state] += 1
-        else:
-            n_valid[i,state] = 1
-        
-    # time estimation
-    elapsed = tm.time() - t_0
-    print('Elapsed time for %d iterations: %f s\n' % (n_iter, elapsed))
-    print('Average time for single iteration: %f ms' % (1000*elapsed/n_iter))
+
+        state_list = [] # list of action validity
+        # max iterations
+        n_iter = int(blokus_game.n_pieces*blokus_game.n_pl)
+        n_valid = np.zeros((n_iter, 5)) # counter for invalid actions
+        t_0 = tm.time() # for timing
+        term = False # terminated condition
+
+        for i in range(n_iter):
+            
+            # admissible actions ids
+            act_id = np.where(valid_masks[active_pl,:] == True)[0]
+            # number of admissible actions
+            n_act = len(act_id)
+            if n_act > 0:
+                # random admissible action
+                adm_a_id = np.random.randint(0, n_act)
+                # actual action id
+                action = act_id[adm_a_id]
+            else:
+                action = None
+            
+            # simulation step
+            obs, rew, term, trunc, info = blokus_game.step(action)
+            valid_masks = info['valid_masks'] # boolean mask of each player's valid action
+            active_pl = info['active_player'] # active player
+            
+            # saving state
+            state = obs['invalid']
+            state_list.append(state)
+            # saving validity counters
+            if i != 0:
+                n_valid[i,:] = n_valid[i-1,:]
+                n_valid[i,state] += 1
+            else:
+                n_valid[i,state] = 1
+            
+            # exit condition
+            if term:
+                break
+            
+        # time estimation
+        elapsed = tm.time() - t_0
+        print('Elapsed time for %d iterations: %f s\n' % (i, elapsed))
+        print('Average time for single iteration: %f ms' % (1000*elapsed/i))
 
     # closes environment
     blokus_game.close()

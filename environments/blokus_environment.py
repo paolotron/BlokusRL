@@ -17,7 +17,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 class BlokusEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 8}
 
-    def __init__(self, render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=1000, invalid_penalty=-1000):
+    def __init__(self, render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=1000, invalid_reward=-1000, dead_reward=-100):
 
         # computes the blokus pieces data
         self.piece_data = preprocess_id()
@@ -30,7 +30,8 @@ class BlokusEnv(gym.Env):
         self.n_pl = 4  # number of players during a game, by default is always 4
         self.rot90_variant = [1, 2, 3, 0, 5, 6, 7, 4]  # next variant when rotating 90 deg counter-clockwise, see preprocess_id.py
         self.win_reward = win_reward # reward for placing all pieces
-        self.invalid_penalty = invalid_penalty # penalty for performing an invalid action
+        self.invalid_reward = invalid_reward # [< 0] penalty for performing an invalid action (with masking should not be relevant)
+        self.dead_reward = dead_reward # [< 0] penalty for being dead early
 
         # resettable
         # invalid last move [0 - 4], valid move = 0, invalid move = [1 - 3], see next_state for details
@@ -128,21 +129,23 @@ class BlokusEnv(gym.Env):
 
     def _get_reward(self):
         # returns reward: 
-        #   each action award -(remaining squares)
-        #   +(win_reward) in case of win condition
-        #   -(invalid_penalty) in case of invalid move
+        #   (1) invalid_reward (<< 0) in case of invalid move
+        #   (2) dead_reward (< 0) in case of a dead player
+        #   (3) win_reward (>> 0) in case of win condition (all pieces placed)
+        #   (4) sum of placed squares (> 0) in every other case       
+        
         if self.invalid: 
-            # invalid last aciton
-            return self.invalid_penalty
+            return self.invalid_reward # (1)        
+        if self.dead[self.active_pl]:
+            return self.dead_reward # (2)        
         placed_pieces_id = np.where(~self.player_hands[self.active_pl, :, 0])
-        if len(placed_pieces_id) == self.n_pieces:
-            # all pieces placed is a win condition for the player
-            return self.win_reward
+        if len(placed_pieces_id) == self.n_pieces:            
+            return self.win_reward # (3)
         count_pos_squares = self.piece_data[1] # number of squares in each piece
-        return np.sum(count_pos_squares[placed_pieces_id, 0])  
+        return np.sum(count_pos_squares[placed_pieces_id, 0]) # (4)
     
     def _get_terminated(self):
-        # returns True when no valid move remains
+        # returns True when no valid move remains (when all players are dead)
         return bool(~np.any(self.valid_act_mask))
         
     def _get_truncated(self):
@@ -159,87 +162,97 @@ class BlokusEnv(gym.Env):
         }        
     
     def step(self, action):
-        # computes a simulation step, given an action and returns observation and info
+        # computes a simulation step, given an action and returns observation and info, if the player is dead skips the action
         
-        # decodes action, must be a boolean vector with a single element equal to 1, returns (row, col, piece, variant)
-        (row, col, p_id, var_id) = np.unravel_index(action, (self.d, self.d, self.n_pieces, self.n_variant))
-        r_id = row + self.pad
-        c_id = col + self.pad
-        
-        # POV is cycled in increasing order of player id, e.g. active_player = 2; pl_pov = [2, 3, 0, 1]
-        pl_pov = self.active_pl
-        # active_pl_from_pov is cycled in decreasing order of player id, e.g. active_player = 2; active_pl_from_pov =
-        # [0, 3, 2, 1]
-        active_pl_from_pov = 0
+        if not self.dead[self.active_pl]:
+            
+            # decodes action, must be a boolean vector with a single element equal to 1, returns (row, col, piece, variant)
+            (row, col, p_id, var_id) = np.unravel_index(action, (self.d, self.d, self.n_pieces, self.n_variant))
+            r_id = row + self.pad
+            c_id = col + self.pad
+            
+            # POV is cycled in increasing order of player id, e.g. active_player = 2; pl_pov = [2, 3, 0, 1]
+            pl_pov = self.active_pl
+            # active_pl_from_pov is cycled in decreasing order of player id, e.g. active_player = 2; active_pl_from_pov =
+            # [0, 3, 2, 1]
+            active_pl_from_pov = 0
 
-        first_valid = False
-        # computes next state from the POV of every player
-        for _ in range(self.n_pl):
-            self.invalid, self.padded_board[:, :, pl_pov], next_pl, self.player_hands[:, :, pl_pov] = next_state(
-                r_id, c_id, p_id, var_id, self.padded_board[:, :, pl_pov], active_pl_from_pov,
-                self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
+            first_valid = False
+            # computes next state from the POV of every player
+            for _ in range(self.n_pl):
+                self.invalid, self.padded_board[:, :, pl_pov], next_pl, self.player_hands[:, :, pl_pov] = next_state(
+                    r_id, c_id, p_id, var_id, self.padded_board[:, :, pl_pov], active_pl_from_pov,
+                    self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
+                
+                if self.invalid:
+                    # print('INVALID ACTION')
+                    # self.show_boards([], False)
+                    # self.show_piece(p_id, var_id)
+                    break  # invalid move, with action masking should not be possible
+                
+                # rotates 90 deg counter-clockwise row and col
+                r_id, c_id = rot90_row_col(r_id, c_id, self.d + 2*self.pad)
+                # rotates 90 deg counter-clockwise piece variant
+                var_id = self.rot90_variant[var_id]
+                # updates pl_pov to next player
+                pl_pov = (pl_pov + 1) % self.n_pl
+                # when the player POV increases to next player the active player consequently appears to roll back by 1
+                active_pl_from_pov = (active_pl_from_pov - 1) % self.n_pl
             
-            if self.invalid:
-                # print('INVALID ACTION')
-                # self.show_boards([], False)
-                # self.show_piece(p_id, var_id)
-                break  # invalid move, with action masking should not be possible
-            
-            # rotates 90 deg counter-clockwise row and col
-            r_id, c_id = rot90_row_col(r_id, c_id, self.d + 2*self.pad)
-            # rotates 90 deg counter-clockwise piece variant
-            var_id = self.rot90_variant[var_id]
-            # updates pl_pov to next player
-            pl_pov = (pl_pov + 1) % self.n_pl
-            # when the player POV increases to next player the active player consequently appears to roll back by 1
-            active_pl_from_pov = (active_pl_from_pov - 1) % self.n_pl
-         
-        if not self.invalid: 
-            
-            # updates players' valid actions, the following boolean masks are used in this order: 
-            #   (1) invalid -> maybe valid (only for the active_player), must be done for each square before the others, to avoid overwriting
-            #   (2) action of placed piece -> invalid (only for the active_player, the one who placed the piece)
-            #   (3) valid, maybe valid -> invalid (only for the active player)
-            #   (4) valid, maybe valid -> invalid (for every player)
-            #   (5) valid, maybe valid -> invalid from placement history (for every player, includes the (2), (3), (4) of past moves, and always_invalid)
-            # this is done for every square of the piece placed in the last action
-            
-            position_square = self.piece_data[0]
-            count_pos_squares = self.piece_data[1]
-            # extract the playing board coordinates of the square of the places piece
-            c_sq = count_pos_squares[p_id, var_id]
-            row_squares = position_square[p_id, var_id, 0:c_sq, 0] + row
-            col_squares = position_square[p_id, var_id, 0:c_sq, 1] + col
-            # (1)
-            for row_r, col_r in zip(row_squares, col_squares):                
-                # set to True the previously invalid actions where invalid_to_maybe_valid for this [row_r, col_r] is True
-                self.valid_act_mask[self.active_pl, np_and(~self.valid_act_mask[self.active_pl, :], self.invalid_to_maybe_valid[row_r, col_r, :])] = True # (1)
-            # (2), (3), (4), (5)
-            for row_r, col_r in zip(row_squares, col_squares):
-                for _ in range(self.n_pl):
-                    
-                    if pl_pov == self.active_pl:
-                        # used_p_id = np.where(self.player_hands[0,:,pl_pov] == False)[0] # all the pieces already used by the player
-                        self.invalid_history = np.reshape(self.invalid_history, (self.n_pl, self.d, self.d, self.n_pieces, self.n_variant)) # 2D -> 5D
-                        self.invalid_history[pl_pov, :, :, p_id, :] = True # (2)
-                        self.invalid_history = np.reshape(self.invalid_history, (self.n_pl, -1)) # 5D -> 2D
-                        self.invalid_history[pl_pov, self.valid_to_invalid_act_pl[row_r, col_r, :]] = True # (3)
-                    self.invalid_history[pl_pov, self.valid_to_invalid[row_r, col_r, :]] = True # (4)
-                    self.valid_act_mask[pl_pov, self.invalid_history[pl_pov, :]] = False # (5)
-                    
-                    # rotates 90 deg counter-clockwise row_r and col_r when changing POV
-                    row_r, col_r = rot90_row_col(row_r, col_r, self.d)
-                    # updates pl_pov to next player
-                    pl_pov = (pl_pov + 1) % self.n_pl
-            
+            # in case of valid move (with action masking should always be the case, except if a player is dead)
+            if not self.invalid: 
+                
+                # updates players' valid actions, the following boolean masks are used in this order: 
+                #   (1) invalid -> maybe valid (only for the active_player), must be done for each square before the others, to avoid overwriting
+                #   (2) action of placed piece -> invalid (only for the active_player, the one who placed the piece)
+                #   (3) valid, maybe valid -> invalid (only for the active player)
+                #   (4) valid, maybe valid -> invalid (for every player)
+                #   (5) valid, maybe valid -> invalid from placement history (for every player, includes the (2), (3), (4) of past moves, and always_invalid)
+                # this is done for every square of the piece placed in the last action
+                
+                position_square = self.piece_data[0]
+                count_pos_squares = self.piece_data[1]
+                # extract the playing board coordinates of the square of the places piece
+                c_sq = count_pos_squares[p_id, var_id]
+                row_squares = position_square[p_id, var_id, 0:c_sq, 0] + row
+                col_squares = position_square[p_id, var_id, 0:c_sq, 1] + col
+                # (1)
+                for row_r, col_r in zip(row_squares, col_squares):                
+                    # set to True the previously invalid actions where invalid_to_maybe_valid for this [row_r, col_r] is True
+                    self.valid_act_mask[self.active_pl, np_and(~self.valid_act_mask[self.active_pl, :], self.invalid_to_maybe_valid[row_r, col_r, :])] = True # (1)
+                # (2), (3), (4), (5)
+                for row_r, col_r in zip(row_squares, col_squares):
+                    for _ in range(self.n_pl):
+                        
+                        if pl_pov == self.active_pl:
+                            # used_p_id = np.where(self.player_hands[0,:,pl_pov] == False)[0] # all the pieces already used by the player
+                            self.invalid_history = np.reshape(self.invalid_history, (self.n_pl, self.d, self.d, self.n_pieces, self.n_variant)) # 2D -> 5D
+                            self.invalid_history[pl_pov, :, :, p_id, :] = True # (2)
+                            self.invalid_history = np.reshape(self.invalid_history, (self.n_pl, -1)) # 5D -> 2D
+                            self.invalid_history[pl_pov, self.valid_to_invalid_act_pl[row_r, col_r, :]] = True # (3)
+                        self.invalid_history[pl_pov, self.valid_to_invalid[row_r, col_r, :]] = True # (4)
+                        self.valid_act_mask[pl_pov, self.invalid_history[pl_pov, :]] = False # (5)
+                        
+                        # rotates 90 deg counter-clockwise row_r and col_r when changing POV
+                        row_r, col_r = rot90_row_col(row_r, col_r, self.d)
+                        # updates pl_pov to next player
+                        pl_pov = (pl_pov + 1) % self.n_pl
+                        
+                # check if the players are dead
+                self.dead = ~np.any(self.valid_act_mask, axis=-1)
+        
+        # in case of a dead active player or a valid move 
+        if self.dead[self.active_pl] or not self.invalid:    
+             
             # updates active player and move count
             self.active_pl = (self.active_pl + 1) % self.n_pl # 0 -> 1, ..., 3 -> 0
-            self.move_count += 1
+            self.move_count += 1   
                     
-            # renders only valid moves
+            # renders only valid moves or moves of dead players
             if self.render_mode == 'human':
                 self._render_frame()
 
+        # get return informations
         observation = self._get_obs()
         reward = self._get_reward()
         terminated = self._get_terminated()
@@ -258,7 +271,9 @@ class BlokusEnv(gym.Env):
         # resets move count to 0
         self.move_count = 0 
         # resets active player
-        self.active_pl = int(self.move_count/self.n_pl)
+        self.active_pl = int(self.move_count/self.n_pl)        
+        # resets dead players, resuscitates them if you prefer
+        self.dead = np.zeros((self.n_pl, 1), dtype='bool')
         # resets player hands to all pieces available
         self.player_hands = np.ones((self.n_pl, self.n_pieces, self.n_pl), dtype='bool')
         # resets game board with padding
