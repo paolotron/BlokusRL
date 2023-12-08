@@ -140,7 +140,7 @@ class BlokusEnv(gym.Env):
         # returns the reward summing the following contributions: 
         #   (1) invalid_reward (<< 0) in case of invalid move
         #   (2) dead_reward (< 0) in case of a dead player
-        #   (3) win_reward (>> 0) in case of win condition (all pieces placed)
+        #   (3) win_reward (>> 0) in case of win condition (all pieces placed or (last move is valid and all are dead))
         #   (4) sum of placed squares (> 0) in every other case       
         
         rew = 0
@@ -149,7 +149,7 @@ class BlokusEnv(gym.Env):
         if self.dead[self.active_pl]:
             rew += self.dead_reward # (2)
         placed_pieces_id = np.where(~self.player_hands[self.active_pl, :, 0])
-        if len(placed_pieces_id) == self.n_pieces:
+        if len(placed_pieces_id) == self.n_pieces or (not self.invalid and np.all(self.dead)):
             rew += self.win_reward # (3)
         count_pos_squares = self.piece_data[1]  # number of squares in each piece
         rew += np.sum(count_pos_squares[placed_pieces_id, 0]) # (4)
@@ -178,7 +178,8 @@ class BlokusEnv(gym.Env):
 
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, if the player is dead skips the action
-
+        
+        self.invalid = 5 # if at the end of step invalid = 5 the player did not take any action because it was dead        
         if not self.dead[self.active_pl]:
 
             # decodes action, must be a boolean vector with a single element equal to 1, returns (row, col, piece, variant)
@@ -192,7 +193,6 @@ class BlokusEnv(gym.Env):
             # [0, 3, 2, 1]
             active_pl_from_pov = 0
 
-            first_valid = False
             # computes next state from the POV of every player
             for _ in range(self.n_pl):
                 self.invalid, self.padded_board[:, :, pl_pov], next_pl, self.player_hands[:, :, pl_pov] = next_state(
@@ -337,9 +337,14 @@ class BlokusEnv(gym.Env):
         else:
             plt.ioff()  # prevents the display of plots
 
-        for i, ax in zip([0, 1, 3, 2], axs.flat):
+        for i, ax in zip([0, 1, 3, 2], axs.flat):            
+            # compute current score (without win bonuses)
+            placed_pieces_id = np.where(~self.player_hands[i, :, 0])
+            count_pos_squares = self.piece_data[1]
+            score = np.sum(count_pos_squares[placed_pieces_id, 0])
+            # plot
             ax.matshow(self.padded_board[:, :, i], cmap=self.cmap[i])
-            ax.set_title('Player %d POV' % i, fontsize=12)
+            ax.set_title('Pl %d POV - Score: %d' % (i, score), fontsize=12)
             ax.axis('off')
 
     def render(self):
