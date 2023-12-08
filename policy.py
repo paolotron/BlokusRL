@@ -1,7 +1,12 @@
+import numpy as np
+import torch as th
 import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.policies import BaseModel
 import gym
 import torch
+from stable_baselines3.common.type_aliases import PyTorchObs
+
 
 class ResidualBlock(nn.Module):
     def __init__(self, hidden_dim):
@@ -43,3 +48,9 @@ class BlokusSeer(BaseFeaturesExtractor):
         hand_feat = self.hand_processor(hand).flatten(start_dim=1)
         feats = torch.cat(vis_feat, hand_feat)
         return feats
+
+
+class RandomPolicy(BaseModel):
+    def predict(self, obs, mask=None):
+        action = self.action_space.sample(mask=np.array(mask, dtype=np.int8))
+        return action
