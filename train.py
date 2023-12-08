@@ -39,24 +39,26 @@ def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default
         learning_rate=lr,
         batch_size=batch_size,
         verbose=1,
+        tensorboard_log=f'./log/{exp_name}'
     )
 
     model.learn(
         total_timesteps=n_steps,
-        callback=WandbCallback() if wandb_log else None,
+        callback=WandbCallback(log='all', verbose=2),
         log_interval=1
+
     )
     model.save(f'./logs/{exp_name}')
     env.close()
     env = Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, render_mode=None))
-    rew, l = evaluate_policy(model, env, n_eval_episodes=20, render=False, return_episode_rewards=True)
+    rew, l = evaluate_policy(model, env, n_eval_episodes=50, render=False, return_episode_rewards=True)
     win_rate = np.mean(np.array(rew) > env.get_wrapper_attr('win_reward'))
     print("AVERAGE REWARD: ", rew, "WIN RATE:", win_rate)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_steps', default=10000, type=int)
+    parser.add_argument('--n_steps', default=50000, type=int)
     parser.add_argument('--envs', default=4, type=int)
     parser.add_argument('--bs', default=256, type=int)
     parser.add_argument('--lr', default=1e-4, type=float)
@@ -67,7 +69,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.wandb:
-        wandb.init(name=args.exp_name, config=vars(args))
+        wandb.init(name=args.exp_name,
+                   config=vars(args),
+                   entity='blokusrl',
+                   project='blokusrl',
+                   sync_tensorboard=True)
 
     main(n_steps=args.n_steps, envs=args.envs, batch_size=args.bs,
          lr=args.lr, exp_name=args.exp_name, feature_extractor=args.feature_extractor,
