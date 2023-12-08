@@ -119,10 +119,10 @@ class BlokusEnv(gym.Env):
         self.window_w = win_width  # pygame window width
         self.window_h = win_height  # pygame window height
         # white, red, green, blue, yellow, grey from: https://service.mattel.com/instruction_sheets/BJV44-Eng.pdf
-        rgb_col = [[255, 255, 255], [215, 29, 36], [0, 161, 75], [0, 90, 170], [253, 184, 19], [222, 217, 210]]
-        rgb_col = np.array(rgb_col) / 255
+        self.rgb_col = [[255, 255, 255, 0], [215, 29, 36, 255], [0, 161, 75, 255], [0, 90, 170, 255], [253, 184, 19, 255], [222, 217, 210, 255]]
+        self.rgb_col = np.array(self.rgb_col) / 255
         self.cmap = [
-            ListedColormap(np.vstack((rgb_col[0, :], np.roll(rgb_col[1:self.n_pl + 1], -i, axis=0), rgb_col[-1, :])))
+            ListedColormap(np.vstack((self.rgb_col[0, :], np.roll(self.rgb_col[1:self.n_pl + 1], -i, axis=0), self.rgb_col[-1, :])))
             for i in range(self.n_pl)
         ]
 
@@ -142,7 +142,7 @@ class BlokusEnv(gym.Env):
     def _get_reward(self):
         # returns the reward summing the following contributions:
         # (0) invalid_reward (<< 0) in case of invalid move
-        # (1) win_reward (>> 0) in case of win condition (all pieces placed or all dead except for active player)
+        # (1) win_reward (>> 0) in case of win condition (all pieces placed or all dead except for active player or all dead)
         # (2) dead_reward (< 0) in case the active player made its last move or the active player is dead (simplyfies to active player is dead)
         # (3) sum of placed blocks (< 0) in every other case (can be changed from 'sum of placed blocks' to 'current placed block')
 
@@ -152,7 +152,7 @@ class BlokusEnv(gym.Env):
         placed_pieces_id = np.where(~self.player_hands[self.active_pl, :, 0])        
         win_mask = np.ones((self.n_pl,), dtype='bool')
         win_mask[self.active_pl] = False
-        if (len(placed_pieces_id) == self.n_pieces) or np.all(self.dead == win_mask):
+        if (len(placed_pieces_id) == self.n_pieces) or np.all(self.dead == win_mask) or np.all(self.dead):
             # TODO: better tie breakers
             self.end_game = True
             return self.win_reward  # (1)  
@@ -165,7 +165,7 @@ class BlokusEnv(gym.Env):
 
     def _get_terminated(self):
         # returns True in case of win condition (all pieces placed or all dead except for active player) or every player is dead
-        return bool(self.end_game or np.all(self.dead))
+        return bool(self.end_game)
 
     def _get_truncated(self):
         # returns True when an invalid action is performed
@@ -186,8 +186,7 @@ class BlokusEnv(gym.Env):
 
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, if the player is dead skips the action
-
-        self.invalid = 5  # if at the end of step invalid = 5 the player did not take any action because it was dead
+        
         if not self.dead[self.active_pl]:
 
             # decodes action, must be a boolean vector with a single element equal to 1, returns (row, col, piece, variant)
@@ -339,7 +338,7 @@ class BlokusEnv(gym.Env):
         p_mat[5, 5] = 1
         plt.matshow(p_mat)
 
-    def show_boards(self, axs, use_given_axis=True):
+    def show_boards(self, axs, use_given_axis=True, draw_edge=False):
         # displays the board from the POV of each player
         # if used outside of this class axs can be set to [] and use_given_axis to False
         if not use_given_axis:
@@ -353,9 +352,24 @@ class BlokusEnv(gym.Env):
             placed_pieces_id = np.where(~self.player_hands[i, :, 0])
             count_pos_squares = self.piece_data[1]
             score = np.sum(count_pos_squares[placed_pieces_id, 0])
+            # compute placed pieces
+            tot_pieces = self.n_pieces - sum(self.player_hands[i, :, 0])
             # plot
-            ax.matshow(self.padded_board[:, :, i], cmap=self.cmap[i])
-            ax.set_title('Pl %d POV - Score: %d' % (i, score), fontsize=12)
+            plot_board = self.padded_board[self.pad-1: -(self.pad-1), self.pad-1: -(self.pad-1), i].copy()
+            plot_board[[0, 0, -1, -1], [0, -1, 0, -1]] = 5
+            if draw_edge:        
+                ax.pcolormesh(plot_board, edgecolors=np.array([222, 217, 210])/255, cmap=self.cmap[i])
+                ax.invert_yaxis()
+            else:
+                bkg = (np.indices(np.shape(plot_board)).sum(axis=0) % 2)*5
+                rgb_bkg = [[255, 255, 255, 0], [222, 217, 210, 255]]
+                rgb_bkg = np.array(rgb_bkg) / 255
+                rgb_bkg[-1,:] = rgb_bkg[-1,:]*0.4 + np.ones_like(rgb_bkg[-1,:])*0.6
+                c_bkg = ListedColormap(rgb_bkg)
+                ax.matshow(bkg, cmap=c_bkg)
+                ax.matshow(plot_board, cmap=self.cmap[i])
+            ax.set_aspect('equal', adjustable='box')
+            ax.set_title('Pl %d POV - Score: %d - Pieces: %d' % (i, score, tot_pieces), fontsize=12)
             ax.axis('off')
 
     def render(self):

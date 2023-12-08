@@ -27,7 +27,7 @@ def main():
     # ----- MAIN -----
 
     # seeds the numpy random number generator
-    np.random.seed(np_seed)
+    # np.random.seed(np_seed)
 
     t_0 = tm.time() # for timing
     # initializes the environment
@@ -57,8 +57,9 @@ def main():
         n_valid = np.zeros((n_iter, 6)) # counter for invalid actions
         t_0 = tm.time() # for timing
         term = False # terminated condition
+        rew_tot = np.zeros((int(n_iter/4), 4)) # reward sum
 
-        for i in range(n_iter*4):
+        for i in range(n_iter):
             
             # admissible actions ids
             act_id = np.where(valid_masks[active_pl,:] == True)[0]
@@ -77,18 +78,16 @@ def main():
             valid_masks = info['valid_masks'] # boolean mask of each player's valid action
             active_pl = info['active_player'] # active player
             
-            # saving state
-            state = obs['invalid']
-            state_list.append(state)
-            # saving validity counters
-            if i != 0:
-                n_valid[i,:] = n_valid[i-1,:]
-                n_valid[i,state] += 1
+            # update reward
+            if i < 4:
+                rew_tot[int(i/4), (active_pl - 1) % 4] = rew 
             else:
-                n_valid[i,state] = 1
+                rew_tot[int(i/4), (active_pl - 1) % 4] = rew_tot[int(i/4) - 1, (active_pl - 1) % 4] + rew
             
             # exit condition
             if term:
+                print('Last player: ',  (active_pl - 1) % 4, '    Last Reward: ', rew)
+                rew_tot[int(i/4), rew_tot[int(i/4), :] == 0] = rew_tot[int(i/4) - 1, rew_tot[int(i/4), :] == 0]
                 break
             
         # time estimation
@@ -101,35 +100,20 @@ def main():
 
     # ----- POST-PROCESSING -----
 
-    # state plot
-    plt.figure()
-    plt.plot(state_list,'o')
-    plt.title('Move validity plot')
-
-    # move outcome percentage plot
-    plt.figure()
-    lbl = ['valid', 'adjacent edges', 'no corner connected', 'overlapping', 'already used']
-    n_step = np.arange(0,n_iter,1)
-    for i in range(5):
-        plt.plot(n_step, 100*n_valid[:,i]/(n_step+1), '-', label=lbl[i])
-    plt.xlabel('Step number')
-    plt.ylabel(r'% of step outcome')
-    plt.legend()
-    plt.grid(True)
-
-    # move outcome cumulative plot
-    plt.figure()
-    lbl = ['valid', 'adjacent edges', 'no corner connected', 'overlapping', 'already used']
-    n_step = np.arange(0,n_iter,1)
-    for i in range(5):
-        plt.plot(n_step, n_valid[:,i], '-', label=lbl[i])
-    plt.xlabel('Step number')
-    plt.ylabel(r'Number of step outcome')
-    plt.legend()
-    plt.grid(True)
-
     # final state, from each POV
-    blokus_game.show_boards([], False)
+    blokus_game.show_boards([], False, draw_edge=True)
+    blokus_game.show_boards([], False, draw_edge=False)
+
+    plt.figure()
+    lbl = ['pl 0', 'pl 1', 'pl 2', 'pl 3']
+    n_step = np.arange(0, int(i/4) + 1, 1)
+    for p in range(4):
+        plt.plot(n_step, rew_tot[:int(i/4) + 1, p], '-', label=lbl[p], color=blokus_game.rgb_col[p+1, :])
+    plt.xlabel('Step number')
+    plt.ylabel('Reward cumulative')
+    plt.legend()
+    plt.title('Cumulative reward for 4 random player agents')
+    plt.grid(True)
 
     plt.show()
 
