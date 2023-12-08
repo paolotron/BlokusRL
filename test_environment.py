@@ -54,7 +54,7 @@ def main():
         action = act_id[adm_a_id]
         
         # simulation step
-        obs, info = blokus_game.step(action)
+        obs, rew, term, trunc, info = blokus_game.step(action)
         valid_masks = info['valid_masks'] # boolean mask of each player's valid action
         active_pl = info['active_player'] # active player
         

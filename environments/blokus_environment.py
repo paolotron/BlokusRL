@@ -16,7 +16,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 class BlokusEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 8}
 
-    def __init__(self, render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2):
+    def __init__(self, render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=200, invalid_penalty=-100):
 
         # computes the blokus pieces data
         self.piece_data = preprocess_id()
@@ -28,6 +28,8 @@ class BlokusEnv(gym.Env):
         self.n_variant = 8  # number of vairant for each piece, 4 rotation times 2 flip states by default
         self.n_pl = 4  # number of players during a game, by default is always 4
         self.rot90_variant = [1, 2, 3, 0, 5, 6, 7, 4]  # next variant when rotating 90 deg counter-clockwise, see preprocess_id.py
+        self.win_reward = win_reward # reward for placing all pieces
+        self.invalid_penalty = invalid_penalty # penalty for performing an invalid action
 
         # resettable
         # invalid last move [0 - 4], valid move = 0, invalid move = [1 - 3], see next_state for details
@@ -64,7 +66,7 @@ class BlokusEnv(gym.Env):
         #   invalid is a flag for the validity of the played action (0 = valid, 1-3 = invalid)
         self.observation_space = spaces.Dict(
             {
-                'board': spaces.Box(0, 4, (self.d, self.d), dtype=int),
+                'board': spaces.MultiBinary((self.d, self.d, self.n_pl+1)),
                 'hands': spaces.MultiBinary((self.n_pl, self.n_pieces)),
                 'turn': spaces.Box(0, self.n_pieces - 1, dtype=int),
                 'invalid': spaces.Box(0, 4, dtype=int)
@@ -95,28 +97,43 @@ class BlokusEnv(gym.Env):
 
     def _get_obs(self):
         # returns the game board, hands, turn and action validity as seen by the active_player's POV
-        return {'board': self.padded_board[self.pad : self.d+self.pad, self.pad : self.d+self.pad, self.active_pl],
+        multibin_playing_board = self.padded_board[self.pad : self.d+self.pad, self.pad : self.d+self.pad, self.active_pl]
+        multibin_playing_board = np.vstack((np.zeros((1, self.n_pl)), np.eye(self.n_pl)))[multibin_playing_board]
+        return {'board': multibin_playing_board,
                 'hands': self.player_hands[:,:, self.active_pl],
                 'turn': np.array([int(self.move_count/self.n_pl)]),
                 'invalid': np.array([self.invalid])
             }
 
-
     def _get_reward(self):
-        # returns reward: each action award -(remaining squares); +200 TBC in case of win condition
+        # returns reward: 
+        #   each action award -(remaining squares)
+        #   +(win_reward) in case of win condition
+        #   -(invalid_penalty) in case of invalid move
+        if self.invalid: 
+            # invalid last aciton
+            return self.invalid_penalty
         remaining_pieces_id = np.where(self.player_hands[self.active_pl, :, 0])[0]
-        position_square = self.piece_data[0]
-        count_pos_squares = self.piece_data[1]
-        return 0
+        if len(remaining_pieces_id) == 0:
+            # all pieces placed is a win condition for the player
+            return self.win_reward
+        count_pos_squares = self.piece_data[1] # number of squares in each piece
+        return np.sum(count_pos_squares[remaining_pieces_id])    
+    
+    def _get_terminated(self):
+        # returns True when no player can place any more pieces
+        return np.all(self.player_hands[self.active_pl, :, :] == False)        
         
+    def _get_truncated(self):
+        # returns True when an invalid action is performed
+        return self.invalid        
     
     def _get_info(self):        
         # returns some additional game state information   
         return {'valid_masks': self.valid_act_mask,
                 'move_count': self.move_count,
                 'active_player': self.active_pl
-            }
-        
+            }        
     
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info
@@ -140,6 +157,7 @@ class BlokusEnv(gym.Env):
                 self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
             if self.invalid:
                 print('INVALID ACTION')
+                # TODO: truncated, out of bounds
                 if first_valid:
                     print('PROBLEM')
                     pass
@@ -178,12 +196,12 @@ class BlokusEnv(gym.Env):
             c_sq = count_pos_squares[p_id, var_id]
             row_squares = position_square[p_id, var_id, 0:c_sq, 0] + row
             col_squares = position_square[p_id, var_id, 0:c_sq, 1] + col
-            # (1)            
+            # (1)
             for row_r, col_r in zip(row_squares, col_squares):
                 curr_val_action = self.valid_act_mask[self.active_pl, :] # temp variable 
                 curr_val_action[np_and(curr_val_action == False, self.invalid_to_maybe_valid[row_r, col_r, :])] = True # (1) 
                 self.valid_act_mask[self.active_pl, :] = curr_val_action # saves the partial results of the new boolean mask    
-            # (2), (3), (4), (5)             
+            # (2), (3), (4), (5)          
             for row_r, col_r in zip(row_squares, col_squares):
                 for _ in range(self.n_pl):
                     
@@ -212,6 +230,9 @@ class BlokusEnv(gym.Env):
                 self._render_frame()
 
         observation = self._get_obs()
+        reward = self._get_reward()
+        terminated = self._get_terminated()
+        truncated = self._get_truncated()
         info = self._get_info()
 
         return observation, reward, terminated, truncated, info
