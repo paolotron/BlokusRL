@@ -11,7 +11,7 @@ def preprocess_id():
     #   - indexes of piece squares
     #   - indexes of attachment points
     #   - indexes of forbidden positions
-    pieces_file = Path('environments/file.npz')
+    pieces_file = Path('./file.npz')
     reference_file = Path('environments/Blokus_Pieces.xlsx')
 
     if not os.path.isfile(pieces_file):
@@ -88,7 +88,7 @@ def preprocess_id():
             'position_forbid': position_forbid,
             'count_pos_forbid': count_pos_forbid
             }
-        np.savez('./file', piece_data_tuple)
+        np.savez('./file', **piece_data_tuple)
 
     else:
         # load pieces data
