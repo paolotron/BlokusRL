@@ -159,7 +159,11 @@ class BlokusEnv(gym.Env):
             'active_player': self.active_pl,
             'active_player_valid_mask': self.valid_act_mask[self.active_pl, :],
             'move_count': self.move_count
-        }        
+        }   
+        
+    def get_masks(self):
+        # return the mask of the valid action of the active player as an array of bool (True = valid action)
+        return self.valid_act_mask[self.active_pl, :]
     
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, if the player is dead skips the action
