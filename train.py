@@ -1,6 +1,8 @@
 import argparse
 
 import numpy as np
+from gym.vector.utils import spaces
+
 import wandb
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.maskable.evaluation import evaluate_policy
@@ -21,15 +23,20 @@ def get_policy_kwargs(feature_extractor):
 
 
 def get_random_policy():
-    dummy_env = BlokusEnv()
-    player = RandomPolicy(action_space=dummy_env.action_space, observation_space=dummy_env.observation_space)
-    del dummy_env
+    player = RandomPolicy(action_space=spaces.Discrete(67200), observation_space=spaces.Discrete(67200))
     return player
 
 
 def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False):
     player = get_random_policy()
-    env = SubprocVecEnv(env_fns=[lambda: Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player))] * envs)
+    env_kwargs = {
+        'dummy_competitor': False,
+        'render_mode': None
+    }
+    if envs > 0:
+        env = SubprocVecEnv(env_fns=[lambda: Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, **env_kwargs))] * envs)
+    else:
+        env = Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, **env_kwargs))
 
     model = MaskablePPO(
         policy='MultiInputPolicy',
