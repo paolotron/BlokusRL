@@ -1,0 +1,55 @@
+{
+    "os": "Windows-10-10.0.19045-SP0",
+    "python": "3.8.10",
+    "heartbeatAt": "2023-12-08T23:06:10.430833",
+    "startedAt": "2023-12-08T23:06:09.552761",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--wandb"
+    ],
+    "state": "running",
+    "program": "train.py",
+    "codePathLocal": "train.py",
+    "codePath": "train.py",
+    "git": {
+        "remote": null,
+        "commit": "8e1cfd19ede6eb24eb3c405ed810819ac4dd66fd"
+    },
+    "email": "davidecosenza98@gmail.com",
+    "root": "E:/Users/Utente/OneDrive/Progetti/Blokus Simulator",
+    "host": "PC",
+    "username": "Utente",
+    "executable": "E:\\Programmi\\Python_38\\python.exe",
+    "cpu_count": 4,
+    "cpu_count_logical": 4,
+    "cpu_freq": {
+        "current": 3401.0,
+        "min": 0.0,
+        "max": 3401.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3401.0,
+            "min": 0.0,
+            "max": 3401.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 931.4960899353027,
+            "used": 802.8742790222168
+        }
+    },
+    "gpu": "NVIDIA GeForce GTX 1660 SUPER",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce GTX 1660 SUPER",
+            "memory_total": 6442450944
+        }
+    ],
+    "memory": {
+        "total": 15.939537048339844
+    }
+}
