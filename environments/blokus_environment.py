@@ -37,6 +37,11 @@ class BlokusEnv(gym.Env):
         # [< 0] penalty for performing an invalid action (with masking should not be relevant)
         self.invalid_reward = invalid_reward
         self.dead_reward = dead_reward  # [< 0] penalty for being dead early
+        # dimension of the action space, in default settings the game has 67.2k possible actions
+        self.action_dim = self.d * self.d * self.n_pieces * self.n_variant
+        # indexes used to avoid reshaping of the action masks when selecting a single piece
+        temp_id = np.reshape(np.arange(0, self.action_dim, 1), (self.d, self.d, self.n_pieces, self.n_variant))
+        self.p_flat_id = {i: temp_id[:,:,i,:] for i in range(self.n_pieces)}
 
         # resettable
         # True when the game ends (win condition)
@@ -55,8 +60,6 @@ class BlokusEnv(gym.Env):
         # game board, with padding = 5 to avoid checking for out of bounds exceptions, one for each player
         self.pad_board = np.ones(
             (self.d + 2 * self.pad, self.d + 2 * self.pad, self.n_pl), dtype=int)
-        # dimension of the action space, in default settings the game has 67.2k possible actions
-        self.action_dim = self.d * self.d * self.n_pieces * self.n_variant
         # boolean mask of the action space for each player, indicating valid actions from each player's POV
         self.valid_act_mask = np.zeros(
             (self.n_pl, self.action_dim), dtype='bool')
@@ -335,12 +338,8 @@ class BlokusEnv(gym.Env):
     def update_masks(self, p_id, pl_pov, row_r, col_r):
         # updates the boolean masks used for action validity check given piece, player POV, placed square coordinates
         if pl_pov == self.active_pl:
-            # used_p_id = np.where(self.player_hands[0,:,pl_pov] == False)[0] # all the pieces already used by the player
-            self.invalid_history = np.reshape(
-                self.invalid_history, (self.n_pl, self.d, self.d, self.n_pieces, self.n_variant))  # 2D -> 5D
-            self.invalid_history[pl_pov, :, :, p_id, :] = True  # (2)
-            self.invalid_history = np.reshape(
-                self.invalid_history, (self.n_pl, -1))  # 5D -> 2D
+            # (2)
+            self.invalid_history[pl_pov, self.p_flat_id[p_id]] = True
             # (3)
             self.invalid_history[pl_pov,
                                  self.val_to_inv_act_pl[row_r, col_r, :]] = True

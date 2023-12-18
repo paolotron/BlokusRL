@@ -1,4 +1,11 @@
 *.npz
+*.pyc
+.idea
 environments/*.npz
+log
 logs
 .vscode
+*.lprof
+*.pclprof
+.spyproject
+environments/__pycache__

@@ -19,6 +19,14 @@
             "program": "${workspaceFolder}/test_environment.py", //"program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true
+        },
+        {
+            "name": "Python: Test Array",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/test_array.py", //"program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
         }
     ]
 }
