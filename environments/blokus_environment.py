@@ -42,16 +42,18 @@ class BlokusEnv(gym.Env):
         self.action_mode = action_mode
 
         # --- constants ---
-        self.piece_data = preprocess_id() # computes the blokus pieces data
+        self.piece_data = preprocess_id()  # computes the blokus pieces data
         self.pad = 5  # pentominos need extra 5 spaces over the board for generic placement
         self.d = d_board  # playing board edge dimension
-        self.n_pieces = 21  # number of blokus pieces for each player        
-        self.n_variant = 8 # number of vairant for each piece, 4 rotation times 2 flip states by default
+        self.n_pieces = 21  # number of blokus pieces for each player
+        # number of vairant for each piece, 4 rotation times 2 flip states by default
+        self.n_variant = 8
         self.n_pl = 4  # number of players during a game, by default is always 4
         self.rot90_variant = [1, 2, 3, 0, 5, 6, 7,
                               4]  # next variant when rotating 90 deg counter-clockwise, see preprocess_id.py
-        self.win_reward = win_reward  # reward for placing all pieces        
-        self.invalid_reward = invalid_reward  # [< 0] penalty for performing an invalid action (with masking should not be relevant)
+        self.win_reward = win_reward  # reward for placing all pieces
+        # [< 0] penalty for performing an invalid action (with masking should not be relevant)
+        self.invalid_reward = invalid_reward
         self.dead_reward = dead_reward  # [< 0] penalty for being dead early
         # pygame and rendering attributes
         assert render_mode is None or render_mode in self.metadata['render_modes']
@@ -104,7 +106,7 @@ class BlokusEnv(gym.Env):
                 self.d + self.pad, self.d + self.pad, i] = 3  # start attachment point player 3, for each POV
             # start attachment point player 4, for each POV
             self.pad_board[self.d + self.pad, self.pad - 1, i] = 4
-            
+
         # --- observation ---
         #   board is the playing board where 0 = empty, 1-4 = player square
         #   hands represent the available pieces in the hands of every player
@@ -147,13 +149,13 @@ class BlokusEnv(gym.Env):
             self.alw_inv = None
             # boolean mask that collects all the invalid moves due to placement and always invalid, is updated every step
             self.invalid_history = np.zeros(
-                (self.n_pl, self.action_dim), dtype='bool')            
+                (self.n_pl, self.action_dim), dtype='bool')
             # preprocess action validity
             self.action_data = preprocess_action(
                 self.pad_board, self.pad, self.n_pieces, self.n_variant, *self.piece_data)
             (self.alw_inv, self.inv_to_val, self.val_to_inv,
              self.val_to_inv_act_pl, self.val_at_start) = self.action_data
-            
+
             # --- action ---
             # array representation of a multidimensional space
             #   row position of the origin of the piece to play [0-d]
@@ -161,15 +163,16 @@ class BlokusEnv(gym.Env):
             #   piece to play [0-n]
             #   variant of the piece to play [0-7]
             self.action_space = spaces.Discrete(self.action_dim)
-            
+
         elif self.action_mode == 'multi_discrete':
-            # --- action ---  
+            # --- action ---
             # same action space as the discrete_masked space, but the action space is decomposed in the 4 basic actions
             #   row position of the origin of the piece to play [0-d]
             #   column position of the origin of the piece to play [0-d]
             #   piece to play [0-n]
             #   variant of the piece to play [0-7]
-            self.action_space = spaces.MultiDiscrete([self.d, self.d, self.n_pieces, self.n_variant])
+            self.action_space = spaces.MultiDiscrete(
+                [self.d, self.d, self.n_pieces, self.n_variant])
 
     # ----- _get_reward helper functions -----
 
@@ -211,7 +214,7 @@ class BlokusEnv(gym.Env):
         return np.mean([self.get_valid_ratio(pl) for pl in range(self.n_pl)])
 
     def _get_reward(self):
-                
+
         if self.action_mode == 'discrete_masked':
             # returns the reward summing the following contributions:
             # (0) invalid_reward (<< 0) in case of invalid move
@@ -232,7 +235,7 @@ class BlokusEnv(gym.Env):
                 return self.dead_reward  # (2)
 
             return 0  # (3)
-    
+
         elif self.action_mode == 'multi_discrete':
             # returns the reward summing the following contributions:
             # (0) invalid_reward (<< 0) in case of invalid move
@@ -247,7 +250,7 @@ class BlokusEnv(gym.Env):
                 self.end_game = True
                 return self.win_reward  # (1)
 
-            return self.get_score(self.active_pl) # (3)
+            return self.get_score(self.active_pl)  # (3)
 
     def _get_terminated(self):
         # returns True in case of win condition (all pieces placed or all dead except for active player) or every player is dead
@@ -297,15 +300,16 @@ class BlokusEnv(gym.Env):
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, behaviour depends on action_mode
 
-        if not self.dead[self.active_pl]:                  
+        if not self.dead[self.active_pl]:
             # decodes action
             if self.action_mode == 'discrete_masked':
                 # action, must be a boolean vector with a single element equal to 1, returns (row, col, piece, variant)
                 (row, col, p_id, var_id) = np.unravel_index(
-                        action, (self.d, self.d, self.n_pieces, self.n_variant))
-            elif self.action_mode == 'multi_discrete':            
+                    action, (self.d, self.d, self.n_pieces, self.n_variant))
+            elif self.action_mode == 'multi_discrete':
                 # action, must be a numpy array containing the four action components (row, col, piece, variant)
-                (row, col, p_id, var_id) = (action[0], action[1], action[2], action[3])
+                (row, col, p_id, var_id) = (
+                    action[0], action[1], action[2], action[3])
             # playing board -> padded board
             r_id = row + self.pad
             c_id = col + self.pad
@@ -318,13 +322,13 @@ class BlokusEnv(gym.Env):
             # computes next state from the POV of every player
             for _ in range(self.n_pl):
                 self.invalid, self.pad_board[:, :, pl_pov], _, self.player_hands[:, :, pl_pov] = next_state(
-                        r_id, c_id, p_id, var_id, self.pad_board[:,
-                                                                :, pl_pov], active_pl_from_pov,
-                        self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
+                    r_id, c_id, p_id, var_id, self.pad_board[:,
+                                                             :, pl_pov], active_pl_from_pov,
+                    self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
 
                 if self.invalid:
                     # active_player is dead due to an invalid move
-                    self.dead[self.active_pl] = True             
+                    self.dead[self.active_pl] = True
                     break
 
                 # rotates 90 deg counter-clockwise row and col
@@ -333,43 +337,43 @@ class BlokusEnv(gym.Env):
                 var_id = self.rot90_variant[var_id]
                 # updates pl_pov to next player
                 pl_pov = (pl_pov + 1) % self.n_pl
-                 # when the player POV increases to next player the active player consequently appears to roll back by 1
+                # when the player POV increases to next player the active player consequently appears to roll back by 1
                 active_pl_from_pov = (active_pl_from_pov - 1) % self.n_pl
 
             # in case of 'discrete_masked' action mode and in case of valid move (with action masking should always be the case, except if a player is dead)
             if self.action_mode == 'discrete_masked' and not self.invalid:
-                    # updates players' valid actions, the following boolean masks are used in this order:
-                    #   (1) invalid -> maybe valid (only for the active_player), must be done for each square before the others, to avoid overwriting
-                    #   (2) action of placed piece -> invalid (only for the active_player, the one who placed the piece)
-                    #   (3) valid, maybe valid -> invalid (only for the active player)
-                    #   (4) valid, maybe valid -> invalid (for every player)
-                    #   (5) valid, maybe valid -> invalid from placement history (for every player, includes the (2), (3), (4) of past moves, and always_invalid)
-                    # this is done for every square of the piece placed in the last action
+                # updates players' valid actions, the following boolean masks are used in this order:
+                #   (1) invalid -> maybe valid (only for the active_player), must be done for each square before the others, to avoid overwriting
+                #   (2) action of placed piece -> invalid (only for the active_player, the one who placed the piece)
+                #   (3) valid, maybe valid -> invalid (only for the active player)
+                #   (4) valid, maybe valid -> invalid (for every player)
+                #   (5) valid, maybe valid -> invalid from placement history (for every player, includes the (2), (3), (4) of past moves, and always_invalid)
+                # this is done for every square of the piece placed in the last action
                 position_square = self.piece_data[0]
                 count_pos_squares = self.piece_data[1]
-                    # extract the playing board coordinates of the square of the places piece
+                # extract the playing board coordinates of the square of the places piece
                 c_sq = count_pos_squares[p_id, var_id]
                 row_squares = position_square[p_id, var_id, 0:c_sq, 0] + row
                 col_squares = position_square[p_id, var_id, 0:c_sq, 1] + col
                 # (1)
                 for row_r, col_r in zip(row_squares, col_squares):
-                        # set to True the previously invalid actions where invalid_to_maybe_valid for this [row_r, col_r] is True
+                    # set to True the previously invalid actions where invalid_to_maybe_valid for this [row_r, col_r] is True
                     self.valid_act_mask[self.active_pl, np_and(~self.valid_act_mask[self.active_pl, :],
-                                                                self.inv_to_val[row_r, col_r,
-                                                                :])] = True  # (1)
+                                                               self.inv_to_val[row_r, col_r,
+                                                                               :])] = True  # (1)
                 # (2), (3), (4), (5)
                 for row_r, col_r in zip(row_squares, col_squares):
                     for _ in range(self.n_pl):
-                            # updates boolean masks for action validity
+                        # updates boolean masks for action validity
                         self.update_masks(p_id, pl_pov, row_r, col_r)
-                            # rotates 90 deg counter-clockwise row_r and col_r when changing POV
+                        # rotates 90 deg counter-clockwise row_r and col_r when changing POV
                         row_r, col_r = rot90_row_col(row_r, col_r, self.d)
-                            # updates pl_pov to next player
+                        # updates pl_pov to next player
                         pl_pov = (pl_pov + 1) % self.n_pl
 
                 # check if the players are dead
                 self.dead = ~np.any(self.valid_act_mask, axis=-1)
-            
+
         # calculates reward before updating active player and move count
         reward = self._get_reward()
 

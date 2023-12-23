@@ -1,17 +1,17 @@
-import time as tm
-t_0 = tm.time() # for timing
-from environments import blokus_environment as be
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from environments import blokus_environment as be
 import time as tm
+t_0 = tm.time()  # for timing
 # time estimation
 elapsed = tm.time() - t_0
 print('Elapsed time for import: %f s\n' % elapsed)
 
+
 def main():
-    
+
     # ----- INPUT -----
-    
+
     # 1 for human rendering and 0 for no rendering
     human_mode = 0
     # number of consecutive games to play
@@ -32,45 +32,48 @@ def main():
     # seeds the numpy random number generator
     # np.random.seed(np_seed)
 
-    t_0 = tm.time() # for timing
+    t_0 = tm.time()  # for timing
     # initializes the environment
     if human_mode:
-        blokus_game = be.BlokusEnv(render_mode='human', action_mode=action_mode, d_board=d_board, win_width=win_width, win_height=win_height)
+        blokus_game = be.BlokusEnv(render_mode='human', action_mode=action_mode,
+                                   d_board=d_board, win_width=win_width, win_height=win_height)
     else:
-        blokus_game = be.BlokusEnv(render_mode=None, action_mode=action_mode, d_board=d_board)
+        blokus_game = be.BlokusEnv(
+            render_mode=None, action_mode=action_mode, d_board=d_board)
     # time estimation
     elapsed = tm.time() - t_0
     print('Elapsed time for init: %f s\n' % elapsed)
 
     for _ in range(n_games):
-        
-        t_0 = tm.time() # for timing
+
+        t_0 = tm.time()  # for timing
         # resets the environment
         obs, info = blokus_game.reset(seed=np_seed)
         # time estimation
         elapsed = tm.time() - t_0
         print('Elapsed time for reset: %f s\n' % elapsed)
-        
-        valid_masks = info['valid_masks'] # boolean mask of each player's valid action
-        active_pl = info['active_player'] # active player
+
+        # boolean mask of each player's valid action
+        valid_masks = info['valid_masks']
+        active_pl = info['active_player']  # active player
 
         # max iterations
         if action_mode == 'discrete_masked':
             n_iter = int(blokus_game.n_pieces*blokus_game.n_pl)
-        elif action_mode == 'multi_discrete':            
+        elif action_mode == 'multi_discrete':
             n_iter = 10000
-            state_list = [] # list of action validity
-            n_valid = np.zeros((n_iter, 6)) # counter for invalid actions
-            
-        t_0 = tm.time() # for timing
-        term = False # terminated condition
-        rew_tot = np.zeros((int(n_iter/4), 4)) # reward sum
+            state_list = []  # list of action validity
+            n_valid = np.zeros((n_iter, 6))  # counter for invalid actions
+
+        t_0 = tm.time()  # for timing
+        term = False  # terminated condition
+        rew_tot = np.zeros((int(n_iter/4), 4))  # reward sum
 
         for i in range(n_iter):
-            
+
             if action_mode == 'discrete_masked':
                 # admissible actions ids
-                act_id = np.where(valid_masks[active_pl,:] == True)[0]
+                act_id = np.where(valid_masks[active_pl, :] == True)[0]
                 # number of admissible actions
                 n_act = len(act_id)
                 if n_act > 0:
@@ -80,35 +83,39 @@ def main():
                     action = act_id[adm_a_id]
                 else:
                     action = None
-                    
+
             elif action_mode == 'multi_discrete':
                 # totally random action
                 action = np.array([
-                    np.random.randint(0, blokus_game.d), 
+                    np.random.randint(0, blokus_game.d),
                     np.random.randint(0, blokus_game.d),
                     np.random.randint(0, blokus_game.n_pieces),
                     np.random.randint(0, blokus_game.n_variant)
-                    ])
+                ])
                 # resuscitate dead players
                 blokus_game.dead[blokus_game.active_pl] = False
-            
+
             # simulation step
             obs, rew, term, trunc, info = blokus_game.step(action)
-            valid_masks = info['valid_masks'] # boolean mask of each player's valid action
-            active_pl = info['active_player'] # active player
-            
+            # boolean mask of each player's valid action
+            valid_masks = info['valid_masks']
+            active_pl = info['active_player']  # active player
+
             # update reward
             if i < 4:
-                rew_tot[int(i/4), (active_pl - 1) % 4] = rew 
+                rew_tot[int(i/4), (active_pl - 1) % 4] = rew
             else:
-                rew_tot[int(i/4), (active_pl - 1) % 4] = rew_tot[int(i/4) - 1, (active_pl - 1) % 4] + rew
-            
+                rew_tot[int(i/4), (active_pl - 1) %
+                        4] = rew_tot[int(i/4) - 1, (active_pl - 1) % 4] + rew
+
             # exit condition
             if term:
-                print('Last player: ',  (active_pl - 1) % 4, '    Last Reward: ', rew)
-                rew_tot[int(i/4), rew_tot[int(i/4), :] == 0] = rew_tot[int(i/4) - 1, rew_tot[int(i/4), :] == 0]
+                print('Last player: ',  (active_pl - 1) %
+                      4, '    Last Reward: ', rew)
+                rew_tot[int(i/4), rew_tot[int(i/4), :] ==
+                        0] = rew_tot[int(i/4) - 1, rew_tot[int(i/4), :] == 0]
                 break
-            
+
         # time estimation
         elapsed = tm.time() - t_0
         print('Elapsed time for %d iterations: %f s\n' % (i, elapsed))
@@ -127,7 +134,8 @@ def main():
     lbl = ['pl 0', 'pl 1', 'pl 2', 'pl 3']
     n_step = np.arange(0, int(i/4) + 1, 1)
     for p in range(4):
-        plt.plot(n_step, rew_tot[:int(i/4) + 1, p], '-', label=lbl[p], color=blokus_game.rgb_col[p+1, :])
+        plt.plot(n_step, rew_tot[:int(i/4) + 1, p], '-',
+                 label=lbl[p], color=blokus_game.rgb_col[p+1, :])
     plt.xlabel('Step number')
     plt.ylabel('Reward cumulative')
     plt.legend()

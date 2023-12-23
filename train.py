@@ -48,13 +48,17 @@ def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default
         verbose=1,
         tensorboard_log=f'./log/{exp_name}'
     )
+    
+    if wandb_log:
+        model.learn(
+            total_timesteps=n_steps,
+            callback=WandbCallback(log='all', verbose=2),
+            log_interval=1
 
-    model.learn(
-        total_timesteps=n_steps,
-        callback=WandbCallback(log='all', verbose=2),
-        log_interval=1
-
-    )
+        )
+    else:
+        model.learn(total_timesteps=n_steps)
+    
     model.save(f'./logs/{exp_name}')
     env.close()
     env = Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, render_mode=None))
