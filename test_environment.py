@@ -23,6 +23,9 @@ def main():
     win_height = 480*2
     # numpy random seed for random number generator
     np_seed = 0
+    # action mode ('discrete_masked' or 'multi_discrete')
+    # action_mode = 'discrete_masked'
+    action_mode = 'multi_discrete'
 
     # ----- MAIN -----
 
@@ -32,9 +35,9 @@ def main():
     t_0 = tm.time() # for timing
     # initializes the environment
     if human_mode:
-        blokus_game = be.BlokusEnv(render_mode='human', d_board=d_board, win_width=win_width, win_height=win_height)
+        blokus_game = be.BlokusEnv(render_mode='human', action_mode=action_mode, d_board=d_board, win_width=win_width, win_height=win_height)
     else:
-        blokus_game = be.BlokusEnv(render_mode=None, d_board=d_board)
+        blokus_game = be.BlokusEnv(render_mode=None, action_mode=action_mode, d_board=d_board)
     # time estimation
     elapsed = tm.time() - t_0
     print('Elapsed time for init: %f s\n' % elapsed)
@@ -51,27 +54,43 @@ def main():
         valid_masks = info['valid_masks'] # boolean mask of each player's valid action
         active_pl = info['active_player'] # active player
 
-        state_list = [] # list of action validity
         # max iterations
-        n_iter = int(blokus_game.n_pieces*blokus_game.n_pl)
-        n_valid = np.zeros((n_iter, 6)) # counter for invalid actions
+        if action_mode == 'discrete_masked':
+            n_iter = int(blokus_game.n_pieces*blokus_game.n_pl)
+        elif action_mode == 'multi_discrete':            
+            n_iter = 10000
+            state_list = [] # list of action validity
+            n_valid = np.zeros((n_iter, 6)) # counter for invalid actions
+            
         t_0 = tm.time() # for timing
         term = False # terminated condition
         rew_tot = np.zeros((int(n_iter/4), 4)) # reward sum
 
         for i in range(n_iter):
             
-            # admissible actions ids
-            act_id = np.where(valid_masks[active_pl,:] == True)[0]
-            # number of admissible actions
-            n_act = len(act_id)
-            if n_act > 0:
-                # random admissible action
-                adm_a_id = np.random.randint(0, n_act)
-                # actual action id
-                action = act_id[adm_a_id]
-            else:
-                action = None
+            if action_mode == 'discrete_masked':
+                # admissible actions ids
+                act_id = np.where(valid_masks[active_pl,:] == True)[0]
+                # number of admissible actions
+                n_act = len(act_id)
+                if n_act > 0:
+                    # random admissible action
+                    adm_a_id = np.random.randint(0, n_act)
+                    # actual action id
+                    action = act_id[adm_a_id]
+                else:
+                    action = None
+                    
+            elif action_mode == 'multi_discrete':
+                # totally random action
+                action = np.array([
+                    np.random.randint(0, blokus_game.d), 
+                    np.random.randint(0, blokus_game.d),
+                    np.random.randint(0, blokus_game.n_pieces),
+                    np.random.randint(0, blokus_game.n_variant)
+                    ])
+                # resuscitate dead players
+                blokus_game.dead[blokus_game.active_pl] = False
             
             # simulation step
             obs, rew, term, trunc, info = blokus_game.step(action)
