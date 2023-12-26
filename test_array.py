@@ -13,7 +13,7 @@ arr2 = arr2.reshape((4, 20, 20, 21, 8))
 arr2[1, :, :, 15, :] = False
 arr2 = arr2.reshape((4, 67200))
 
-arr1[1, ::] = False
+# arr1[1, ::] = False
 
 elapsed = tm.time() - t_0
 print('Elapsed time: %f ms' % (elapsed*1000))
