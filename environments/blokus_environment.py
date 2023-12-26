@@ -12,19 +12,7 @@ from matplotlib import use as plt_use
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-
-
-def timeit(func):
-    @wraps(func)
-    def timeit_wrapper(*args, **kwargs):
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        end_time = time.perf_counter()
-        total_time = end_time - start_time
-        print(
-            f'Function {func.__name__}{args} {kwargs} Took {1000*total_time:.4f} ms')
-        return result
-    return timeit_wrapper
+from itertools import product
 
 
 class BlokusEnv(gym.Env):
@@ -160,7 +148,10 @@ class BlokusEnv(gym.Env):
             #   variant of the piece to play [0-7]
             self.action_space = spaces.Discrete(self.action_dim)
 
-        elif self.action_mode == 'multi_discrete':        
+        elif self.action_mode == 'multi_discrete':
+            
+            # dummy mask provided is maskable learning algorithm are used in the 'multi_discrete' case
+            self.dummy_maks = np.ones((self.d + self.d + self.n_pieces + self.n_variant, ), dtype='bool')
             
             # --- action ---
             # same action space as the discrete_masked space, but the action space is decomposed in the 4 basic actions
@@ -169,7 +160,7 @@ class BlokusEnv(gym.Env):
             #   piece to play [0-n]
             #   variant of the piece to play [0-7]
             self.action_space = spaces.MultiDiscrete(
-                [self.d*self.d, self.n_pieces, self.n_variant])
+                [self.d, self.d, self.n_pieces, self.n_variant])
 
     # ----- _get_reward helper functions -----
 
@@ -295,9 +286,8 @@ class BlokusEnv(gym.Env):
             # return the mask of the valid action of the active player as an array of bool (True = valid action)
             return self.valid_act_mask[self.active_pl, :]
         elif self.action_mode == 'multi_discrete':
-            # return an incomplete mask of the valid action (some actions will still be invalid unfortunately)
-            mask = np.ones((self.d*self.d + self.n_pieces + self.n_variant))
-            return self.pad_board[self.pad:-self.pad, self.pad:-self.pad,:] # flatten 
+            # return a blank always True mask
+            return self.dummy_maks
 
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, behaviour depends on action_mode
@@ -306,13 +296,12 @@ class BlokusEnv(gym.Env):
             # decodes action
             if self.action_mode == 'discrete_masked':
                 # action, must be a boolean vector with a single element equal to 1, returns (row, col, piece, variant)
-                row, col, p_id, var_id = np.unravel_index(
+                (row, col, p_id, var_id) = np.unravel_index(
                     action, (self.d, self.d, self.n_pieces, self.n_variant))
             elif self.action_mode == 'multi_discrete':
-                # action, must be a numpy array containing the three action components (row_col, piece, variant)
-                # note: row_col has size self.d*self.d, must be unraveld to row, col
-                row_col, p_id, var_id = action[0], action[1], action[2]
-                row, col = np.unravel_index(row_col, (self.d, self.d))
+                # action, must be a numpy array containing the four action components (row, col, piece, variant)
+                (row, col, p_id, var_id) = (
+                    action[0], action[1], action[2], action[3])
             # playing board -> padded board
             r_id = row + self.pad
             c_id = col + self.pad
@@ -361,7 +350,9 @@ class BlokusEnv(gym.Env):
                 # (1)
                 for row_r, col_r in zip(row_squares, col_squares):
                     # set to True the previously invalid actions where invalid_to_maybe_valid for this [row_r, col_r] is True
-                    self.valid_act_mask[self.active_pl, np_and(~self.valid_act_mask[self.active_pl, :], self.inv_to_val[row_r, col_r, :])] = True  # (1)
+                    self.valid_act_mask[self.active_pl, np_and(~self.valid_act_mask[self.active_pl, :],
+                                                               self.inv_to_val[row_r, col_r,
+                                                                               :])] = True  # (1)
                 # (2), (3), (4), (5)
                 for row_r, col_r in zip(row_squares, col_squares):
                     for _ in range(self.n_pl):
@@ -398,7 +389,31 @@ class BlokusEnv(gym.Env):
 
         return observation, reward, terminated, truncated, info
 
-    @timeit
+    def random_step(self, seed=None):
+
+        if self.dead[self.active_pl]:
+            return
+
+        m = self.action_masks()
+        tile = np.argwhere(m[:400])
+        pieces = np.argwhere(m[400:421])
+        orientations = np.argwhere(m[421:429])
+        
+        for t, p, o in product(tile, pieces, orientations):
+            _, _, _, wrong, _ = self.step(np.asarray([t, p, o]))
+            if not wrong:
+                break
+        else:
+            self.dead[self.active_pl] = 1
+            self.active_pl = (self.active_pl + 1) % self.n_pl
+            self.move_count += 1
+
+            # renders only valid moves or moves of dead players
+            if self.render_mode == 'human':
+                self._render_frame()
+        
+        return 
+
     def update_masks(self, p_id, pl_pov, row_r, col_r):
         # updates the boolean masks used for action validity check given piece, player POV, placed square coordinates
         if pl_pov == self.active_pl:
