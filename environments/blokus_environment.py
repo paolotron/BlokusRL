@@ -4,6 +4,8 @@ from numpy import logical_and as np_and
 from numpy import logical_or as np_or
 from functools import wraps
 import time
+import torch.nn.functional as f
+import torch
 import gymnasium as gym
 from gymnasium import spaces
 from environments.preprocessing_id import preprocess_id
@@ -95,13 +97,17 @@ class BlokusEnv(gym.Env):
         for i in range(self.n_pl):
             # places first attachment points in the corners just outside the playing board (player_color = player_id + 1)
             # start attachment point player 1, for each POV
-            self.pad_board[self.pad - 1, self.pad - 1, i] = 1
-            # start attachment point player 2, for each POV
-            self.pad_board[self.pad - 1, self.d + self.pad, i] = 2
             self.pad_board[
-                self.d + self.pad, self.d + self.pad, i] = 3  # start attachment point player 3, for each POV
+                self.pad - 1, self.pad - 1, i] = 1
+            # start attachment point player 2, for each POV
+            self.pad_board[
+                self.pad - 1, self.d + self.pad, i] = 2
+            # start attachment point player 3, for each POV
+            self.pad_board[
+                self.d + self.pad, self.d + self.pad, i] = 3
             # start attachment point player 4, for each POV
-            self.pad_board[self.d + self.pad, self.pad - 1, i] = 4
+            self.pad_board[
+                self.d + self.pad, self.pad - 1, i] = 4
 
         # --- observation ---
         #   board is the playing board where 0 = empty, 1-4 = player square
@@ -299,7 +305,17 @@ class BlokusEnv(gym.Env):
             return self.valid_act_mask[self.active_pl, :]
         elif self.action_mode == 'multi_discrete':
             # return an incomplete mask of the valid action (some actions will still be invalid unfortunately)
-            valid_row_col = np.ndarray.flatten(self.pad_board[self.pad:-self.pad, self.pad:-self.pad, self.active_pl] == 0)  # 400 in std game
+            board = self.pad_board[:, : , self.active_pl] == (self.active_pl + 1)  # board is 1 only where the active player has placed squares
+            board = torch.tensor(board[None, None, ...])  # adding 2 dimensions
+            weight = torch.tensor([[[[1, -10, 1], [-10, -10, -10], [1, -10, 1]]]])  # convolution kernel
+            board_conv = f.conv2d(board.float(), weight.float(), stride=1, padding=1).numpy()  # convolution                        
+            # valid positions: 
+            valid_row_col = np_and(
+                board_conv[0, 0, self.pad:-self.pad, self.pad:-self.pad] > 0, 
+                self.pad_board[self.pad:-self.pad, self.pad:-self.pad, self.active_pl] == 0
+            )
+            
+            valid_row_col = np.ndarray.flatten(valid_row_col)  # 400 in std game
             valid_pieces = self.player_hands[self.active_pl, :, 0]  # 21 in standard game
             valid_orient = np.ones((self.n_variant, ), dtype='bool')  # 8 in standard game
             return np.concatenate((valid_row_col, valid_pieces, valid_orient))
@@ -427,7 +443,7 @@ class BlokusEnv(gym.Env):
         orientations = np.argwhere(m[421:429])
         
         for t, p, o in product(tile, pieces, orientations):
-            _, _, _, wrong, _ = self.step(np.asarray([t, p, o], dtype=np.int64))
+            _, _, _, wrong, _ = self.step(np.concatenate([t, p, o], dtype=np.int64))
             if not wrong:
                 break
         else:
@@ -640,7 +656,6 @@ def next_state(row, col, p_id, var_id, padded_board, player_id, player_hands, n_
 
     # checks overlap with other pieces
     # occurs if at least one of the squares of the piece is different than zero
-    breakpoint()
     c_sq = count_pos_squares[p_id, var_id]
     row_squares = position_square[p_id, var_id, 0:c_sq, 0]
     col_squares = position_square[p_id, var_id, 0:c_sq, 1]

@@ -37,7 +37,7 @@ def get_random_policy(action_mode):
     return player
 
 
-def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False, action_mode='multi_discrete'):
+def main(envs=0, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False, action_mode='multi_discrete'):
     # action_mode can be 'discrete_masked' or 'multi_discrete'
     player = get_random_policy(action_mode)
     env_kwargs = {
@@ -58,7 +58,6 @@ def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default
         batch_size=batch_size,
         verbose=1,
         tensorboard_log=f'./log/{exp_name}'
-        # device='cpu'
     )
     
     if wandb_log:
