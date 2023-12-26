@@ -31,8 +31,8 @@ def get_random_policy(action_mode):
             )
     elif action_mode == 'multi_discrete':
         player = RandomPolicy(
-            action_space=spaces.MultiDiscrete([20, 20, 21, 8]),
-            observation_space=spaces.MultiDiscrete([20, 20, 21, 8])
+            action_space=spaces.MultiDiscrete([400, 21, 8]),
+            observation_space=spaces.MultiDiscrete([400, 21, 8])
             )
     return player
 
@@ -41,7 +41,6 @@ def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default
     # action_mode can be 'discrete_masked' or 'multi_discrete'
     player = get_random_policy(action_mode)
     env_kwargs = {
-        'dummy_competitor': False,
         'render_mode': None,
         'action_mode': action_mode
     }
@@ -59,6 +58,7 @@ def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default
         batch_size=batch_size,
         verbose=1,
         tensorboard_log=f'./log/{exp_name}'
+        # device='cpu'
     )
     
     if wandb_log:

@@ -15,6 +15,18 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from itertools import product
 
 
+def timeit(func):
+    @wraps(func)
+    def timeit_wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        print(
+            f'Function {func.__name__}{args} {kwargs} Took {1000*total_time:.4f} ms')
+        return result
+    return timeit_wrapper
+
 class BlokusEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 8}
 
@@ -160,7 +172,7 @@ class BlokusEnv(gym.Env):
             #   piece to play [0-n]
             #   variant of the piece to play [0-7]
             self.action_space = spaces.MultiDiscrete(
-                [self.d, self.d, self.n_pieces, self.n_variant])
+                [self.d*self.d, self.n_pieces, self.n_variant])
 
     # ----- _get_reward helper functions -----
 
@@ -287,10 +299,10 @@ class BlokusEnv(gym.Env):
             return self.valid_act_mask[self.active_pl, :]
         elif self.action_mode == 'multi_discrete':
             # return an incomplete mask of the valid action (some actions will still be invalid unfortunately)
-            valid_row_col = np.ndarray.flatten(self.pad_board[self.pad:-self.pad, self.pad:-self.pad,:] == 0)  # 400 in std game
+            valid_row_col = np.ndarray.flatten(self.pad_board[self.pad:-self.pad, self.pad:-self.pad, self.active_pl] == 0)  # 400 in std game
             valid_pieces = self.player_hands[self.active_pl, :, 0]  # 21 in standard game
-            valid_orient = np.ones((), dtype='bool')  # 8 in standard game
-            return np.vstack(valid_row_col, valid_pieces, valid_orient) 
+            valid_orient = np.ones((self.n_variant, ), dtype='bool')  # 8 in standard game
+            return np.concatenate((valid_row_col, valid_pieces, valid_orient))
 
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, behaviour depends on action_mode
@@ -303,8 +315,8 @@ class BlokusEnv(gym.Env):
                     action, (self.d, self.d, self.n_pieces, self.n_variant))
             elif self.action_mode == 'multi_discrete':
                 # action, must be a numpy array containing the four action components (row, col, piece, variant)
-                (row, col, p_id, var_id) = (
-                    action[0], action[1], action[2], action[3])
+                row_col, p_id, var_id = action[0], action[1], action[2]
+                row, col = np.unravel_index(row_col, (self.d, self.d))
             # playing board -> padded board
             r_id = row + self.pad
             c_id = col + self.pad
@@ -392,7 +404,6 @@ class BlokusEnv(gym.Env):
 
         return observation, reward, terminated, truncated, info
 
-    @timeit
     def update_masks(self, p_id, pl_pov, row_r, col_r):
         # updates the boolean masks used for action validity check given piece, player POV, placed square coordinates
         if pl_pov == self.active_pl:
@@ -404,6 +415,31 @@ class BlokusEnv(gym.Env):
         self.invalid_history[pl_pov, self.val_to_inv[row_r, col_r, :]] = True
         # (5)
         self.valid_act_mask[pl_pov, self.invalid_history[pl_pov, :]] = False
+
+    def random_step(self, seed=None):
+
+        if self.dead[self.active_pl]:
+            return
+
+        m = self.action_masks()
+        tile = np.argwhere(m[:400])
+        pieces = np.argwhere(m[400:421])
+        orientations = np.argwhere(m[421:429])
+        
+        for t, p, o in product(tile, pieces, orientations):
+            _, _, _, wrong, _ = self.step(np.asarray([t, p, o], dtype=np.int64))
+            if not wrong:
+                break
+        else:
+            self.dead[self.active_pl] = 1
+            self.active_pl = (self.active_pl + 1) % self.n_pl
+            self.move_count += 1
+
+            # renders only valid moves or moves of dead players
+            if self.render_mode == 'human':
+                self._render_frame()
+        
+        return
 
     def reset(self, seed=None):
         # resets the environment and returns the first observation and info
@@ -604,6 +640,7 @@ def next_state(row, col, p_id, var_id, padded_board, player_id, player_hands, n_
 
     # checks overlap with other pieces
     # occurs if at least one of the squares of the piece is different than zero
+    breakpoint()
     c_sq = count_pos_squares[p_id, var_id]
     row_squares = position_square[p_id, var_id, 0:c_sq, 0]
     col_squares = position_square[p_id, var_id, 0:c_sq, 1]

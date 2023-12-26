@@ -13,9 +13,9 @@ class SelfPlayBlokusEnv(BlokusEnv):
         self.random_competitor = competitors.startswith('random')
 
     def step(self, action):
-        obs, reward, terminated, truncated, _ = super().step(action)
-        if terminated or truncated:
-            return obs, reward, terminated, truncated, info
+        obs, reward, terminated, truncated, info = super().step(action)
+        # if terminated or truncated:
+        #    return obs, reward, terminated, truncated, info
         if self.random_competitor:
             for _ in range(3):
                 super().random_step()
