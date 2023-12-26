@@ -52,5 +52,5 @@ class BlokusSeer(BaseFeaturesExtractor):
 
 class RandomPolicy(BaseModel):
     def predict(self, obs, mask=None):
-        action = self.action_space.sample(mask=np.array(mask, dtype=np.int8))
+        action = self.action_space.sample() # (mask=np.array(mask, dtype=np.int8))
         return action

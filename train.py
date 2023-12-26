@@ -5,12 +5,13 @@ from gym.vector.utils import spaces
 
 import wandb
 from sb3_contrib import MaskablePPO
+from stable_baselines3 import PPO
 from sb3_contrib.common.maskable.evaluation import evaluate_policy
 from stable_baselines3.common.env_util import Monitor
 
 from environments.SelfPlayBlokusEnv import SelfPlayBlokusEnv
 from stable_baselines3.common.vec_env.subproc_vec_env import SubprocVecEnv
-from environments.blokus_environment import BlokusEnv
+
 from policy import RandomPolicy, BlokusSeer
 from wandb.integration.sb3 import WandbCallback
 
@@ -22,16 +23,27 @@ def get_policy_kwargs(feature_extractor):
     }[feature_extractor]
 
 
-def get_random_policy():
-    player = RandomPolicy(action_space=spaces.Discrete(67200), observation_space=spaces.Discrete(67200))
+def get_random_policy(action_mode):
+    if action_mode == 'discrete_masked':
+        player = RandomPolicy(
+            action_space=spaces.Discrete(67200),
+            observation_space=spaces.Discrete(67200)
+            )
+    elif action_mode == 'multi_discrete':
+        player = RandomPolicy(
+            action_space=spaces.MultiDiscrete([20, 20, 21, 8]),
+            observation_space=spaces.MultiDiscrete([20, 20, 21, 8])
+            )
     return player
 
 
-def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False):
-    player = get_random_policy()
+def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False, action_mode='multi_discrete'):
+    # action_mode can be 'discrete_masked' or 'multi_discrete'
+    player = get_random_policy(action_mode)
     env_kwargs = {
         'dummy_competitor': False,
-        'render_mode': None
+        'render_mode': None,
+        'action_mode': action_mode
     }
     if envs > 0:
         env = SubprocVecEnv(env_fns=[lambda: Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, **env_kwargs))] * envs)
@@ -61,7 +73,7 @@ def main(envs=8, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default
     
     model.save(f'./logs/{exp_name}')
     env.close()
-    env = Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, render_mode=None))
+    env = Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, **env_kwargs))
     rew, l = evaluate_policy(model, env, n_eval_episodes=50, render=False, return_episode_rewards=True)
     win_rate = np.mean(np.array(rew) > env.get_wrapper_attr('win_reward'))
     print("AVERAGE REWARD: ", rew, "WIN RATE:", win_rate)

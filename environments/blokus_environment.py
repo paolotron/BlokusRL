@@ -1,5 +1,4 @@
 import pygame
-import warnings as wr
 import numpy as np
 from numpy import logical_and as np_and
 from numpy import logical_or as np_or
@@ -15,27 +14,11 @@ from matplotlib.colors import ListedColormap
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 
-# TODO: player_id to player_color and viceversa
-
-
-def timeit(func):
-    @wraps(func)
-    def timeit_wrapper(*args, **kwargs):
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        end_time = time.perf_counter()
-        total_time = end_time - start_time
-        print(
-            f'Function {func.__name__}{args} {kwargs} Took {1000*total_time:.4f} ms')
-        return result
-    return timeit_wrapper
-
-
 class BlokusEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 8}
 
     def __init__(self, action_mode='discrete_masked', render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=1000,
-                 invalid_reward=-1000, dead_reward=-1000):
+                 invalid_reward=-1, dead_reward=-1):
 
         # two possible action spaces: 'discrete_masked' (uses action masking) or 'multi_discrete'
         assert action_mode in ['discrete_masked', 'multi_discrete']
@@ -88,11 +71,11 @@ class BlokusEnv(gym.Env):
             (self.n_pl, self.n_pieces, self.n_pl), dtype='bool')
         # game board, with padding = 5 to avoid checking for out of bounds exceptions, one for each player
         self.pad_board = np.ones(
-            (self.d + 2 * self.pad, self.d + 2 * self.pad, self.n_pl), dtype=int)
+            (self.d + 2 * self.pad, self.d + 2 * self.pad, self.n_pl), dtype='int')
         # resets game board with padding (to do preprocess_action only in __init__() and not in reset())
         # (unplayable area marked with 5)
         self.pad_board = np.ones(
-            (self.d + 2 * self.pad, self.d + 2 * self.pad, self.n_pl), dtype=int) * 5
+            (self.d + 2 * self.pad, self.d + 2 * self.pad, self.n_pl), dtype='int') * 5
         # only internal 20 x 20 is playable (marked with 0)
         self.pad_board[self.pad:-self.pad, self.pad:-self.pad, :] = 0
         # player id: 1, 2, 3, 4 starting attachment point (corner outside of 20 x 20 playing board)
@@ -116,8 +99,8 @@ class BlokusEnv(gym.Env):
             {
                 'board': spaces.MultiBinary((self.d, self.d, self.n_pl)),
                 'hands': spaces.MultiBinary((self.n_pl, self.n_pieces)),
-                'turn': spaces.Box(0, self.n_pieces - 1, dtype=int),
-                'invalid': spaces.Box(0, 4, dtype=int)
+                'turn': spaces.Box(0, self.n_pieces - 1, dtype='int'),
+                'invalid': spaces.Box(0, 4, dtype='int')
             }
         )
 
@@ -165,6 +148,10 @@ class BlokusEnv(gym.Env):
             self.action_space = spaces.Discrete(self.action_dim)
 
         elif self.action_mode == 'multi_discrete':
+            
+            # dummy mask provided is maskable learning algorithm are used in the 'multi_discrete' case
+            self.dummy_maks = np.ones((self.d + self.d + self.n_pieces + self.n_variant, ), dtype='bool')
+            
             # --- action ---
             # same action space as the discrete_masked space, but the action space is decomposed in the 4 basic actions
             #   row position of the origin of the piece to play [0-d]
@@ -250,7 +237,7 @@ class BlokusEnv(gym.Env):
                 self.end_game = True
                 return self.win_reward  # (1)
 
-            return self.get_score(self.active_pl)  # (3)
+            return 1  # self.get_score(self.active_pl)  # (3)
 
     def _get_terminated(self):
         # returns True in case of win condition (all pieces placed or all dead except for active player) or every player is dead
@@ -294,8 +281,12 @@ class BlokusEnv(gym.Env):
             }
 
     def action_masks(self):
-        # return the mask of the valid action of the active player as an array of bool (True = valid action)
-        return self.valid_act_mask[self.active_pl, :]
+        if self.action_mode == 'discrete_masked':
+            # return the mask of the valid action of the active player as an array of bool (True = valid action)
+            return self.valid_act_mask[self.active_pl, :]
+        elif self.action_mode == 'multi_discrete':
+            # return a blank always True mask
+            return self.dummy_maks
 
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, behaviour depends on action_mode
@@ -430,7 +421,7 @@ class BlokusEnv(gym.Env):
             (self.n_pl, self.n_pieces, self.n_pl), dtype='bool')
         # resets game board with padding
         self.pad_board = np.ones((self.d + 2 * self.pad, self.d + 2 * self.pad, self.n_pl),
-                                 dtype=int) * 5  # (unplayable area marked with 5)
+                                 dtype='int') * 5  # (unplayable area marked with 5)
         self.pad_board[self.pad:-self.pad, self.pad:-self.pad,
                        :] = 0  # only internal 20 x 20 is playable (marked with 0)
         # player id: 1, 2, 3, 4 starting attachment point (corner outside of 20 x 20 playing board)
@@ -643,3 +634,18 @@ def next_state(row, col, p_id, var_id, padded_board, player_id, player_hands, n_
     player_id = (player_id + 1) % n_players  # 0 -> 1, ..., 3 -> 0
 
     return 0, padded_board, player_id, player_hands
+
+
+"""
+def timeit(func):
+    @wraps(func)
+    def timeit_wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        print(
+            f'Function {func.__name__}{args} {kwargs} Took {1000*total_time:.4f} ms')
+        return result
+    return timeit_wrapper
+"""
