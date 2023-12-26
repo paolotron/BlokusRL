@@ -286,8 +286,11 @@ class BlokusEnv(gym.Env):
             # return the mask of the valid action of the active player as an array of bool (True = valid action)
             return self.valid_act_mask[self.active_pl, :]
         elif self.action_mode == 'multi_discrete':
-            # return a blank always True mask
-            return self.dummy_maks
+            # return an incomplete mask of the valid action (some actions will still be invalid unfortunately)
+            valid_row_col = np.ndarray.flatten(self.pad_board[self.pad:-self.pad, self.pad:-self.pad,:] == 0)  # 400 in std game
+            valid_pieces = self.player_hands[self.active_pl, :, 0]  # 21 in standard game
+            valid_orient = np.ones((), dtype='bool')  # 8 in standard game
+            return np.vstack(valid_row_col, valid_pieces, valid_orient) 
 
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, behaviour depends on action_mode
@@ -389,31 +392,7 @@ class BlokusEnv(gym.Env):
 
         return observation, reward, terminated, truncated, info
 
-    def random_step(self, seed=None):
-
-        if self.dead[self.active_pl]:
-            return
-
-        m = self.action_masks()
-        tile = np.argwhere(m[:400])
-        pieces = np.argwhere(m[400:421])
-        orientations = np.argwhere(m[421:429])
-        
-        for t, p, o in product(tile, pieces, orientations):
-            _, _, _, wrong, _ = self.step(np.asarray([t, p, o]))
-            if not wrong:
-                break
-        else:
-            self.dead[self.active_pl] = 1
-            self.active_pl = (self.active_pl + 1) % self.n_pl
-            self.move_count += 1
-
-            # renders only valid moves or moves of dead players
-            if self.render_mode == 'human':
-                self._render_frame()
-        
-        return 
-
+    @timeit
     def update_masks(self, p_id, pl_pov, row_r, col_r):
         # updates the boolean masks used for action validity check given piece, player POV, placed square coordinates
         if pl_pov == self.active_pl:

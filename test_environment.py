@@ -87,8 +87,7 @@ def main():
             elif action_mode == 'multi_discrete':
                 # totally random action
                 action = np.array([
-                    np.random.randint(0, blokus_game.d),
-                    np.random.randint(0, blokus_game.d),
+                    np.random.randint(0, blokus_game.d*blokus_game.d),
                     np.random.randint(0, blokus_game.n_pieces),
                     np.random.randint(0, blokus_game.n_variant)
                 ])
