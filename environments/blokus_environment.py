@@ -36,11 +36,12 @@ def timeit(func):
         return result
     return timeit_wrapper
 
+
 class BlokusEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 8}
 
-    def __init__(self, action_mode='discrete_masked', render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=100,
-                 invalid_reward=-1, dead_reward=-1):
+    def __init__(self, action_mode='discrete_masked', render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=50,
+                 invalid_reward=-10, dead_reward=-1):
 
         # two possible action spaces: 
         #   'discrete_masked' (uses exact action masking)
@@ -62,7 +63,6 @@ class BlokusEnv(gym.Env):
         # [< 0] penalty for performing an invalid action (with masking should not be relevant)
         self.invalid_reward = invalid_reward
         self.dead_reward = dead_reward  # [< 0] penalty for being dead early
-        self.kill_if_invalid_move = True  # wether step method kills player after invalid move
         # pygame and rendering attributes
         assert render_mode is None or render_mode in self.metadata['render_modes']
         self.render_mode = render_mode
@@ -169,6 +169,8 @@ class BlokusEnv(gym.Env):
                 self.pad_board, self.pad, self.n_pieces, self.n_variant, *self.piece_data)
             (self.alw_inv, self.inv_to_val, self.val_to_inv,
              self.val_to_inv_act_pl, self.val_at_start) = self.action_data
+            # wether step method kills player after invalid move
+            self.kill_if_invalid_move = False
 
             # --- action ---
             # array representation of a multidimensional space
@@ -180,8 +182,8 @@ class BlokusEnv(gym.Env):
 
         elif self.action_mode == 'multi_discrete':
             
-            # dummy mask provided is maskable learning algorithm are used in the 'multi_discrete' case
-            self.dummy_maks = np.ones((self.d + self.d + self.n_pieces + self.n_variant, ), dtype='bool')
+            # wether step method kills player after invalid move
+            self.kill_if_invalid_move = True
             
             # --- action ---
             # same action space as the discrete_masked space, but the action space is decomposed in the 4 basic actions
@@ -211,7 +213,7 @@ class BlokusEnv(gym.Env):
     def is_active_player_dead(self):
         return self.dead[self.active_pl]
 
-    def get_score(self, player):
+    def get_basic_score(self, player):
         # returns the total placed squares of player [0 -3]
         # number of squares in each piece
         count_pos_squares = self.piece_data[1]
@@ -243,24 +245,32 @@ class BlokusEnv(gym.Env):
 
         if self.action_mode == 'discrete_masked':
             # returns the reward summing the following contributions:
-            # (0) invalid_reward (<< 0) in case of invalid move
-            # (1) win_reward (>> 0) in case of win condition (all pieces placed or all dead except for active player or all dead)
+            # (0) win_reward (>> 0) in case of win condition (all pieces placed and all players are dead)
+            # (1) win_reward (>> 0) in case of all dead but active_player has highest score
             # (2) dead_reward (<< 0) in case the active player made its last move or the active player is dead (simplyfies to active player is dead)
-            # (3) 0 in every other case
-            # (?) sum of placed blocks (> 0) in every other case (could be changed from 'sum of placed blocks' to 'current placed block')
+            # (3) ...
             # TODO: better tie breakers
 
-            if self.invalid:
-                return self.invalid_reward  # (0)
-
-            if self.all_pieces_placed(self.active_pl) or self.is_last_standing(self.active_pl) or self.all_dead():
+            if self.all_pieces_placed(self.active_pl) and self.all_dead():
                 self.end_game = True
-                return self.win_reward  # (1)
-
+                return self.win_reward  # (0)
+            
+            if self.all_dead():
+                self.end_game = True
+                active_pl_score = self.get_basic_score(self.active_pl)
+                scores = np.array([self.get_basic_score(i) for i in range(self.n_pl)])
+                if np.all(active_pl_score >= scores):
+                    return self.win_reward  # (1)
+                else:
+                    return 0
+            
             if self.dead[self.active_pl]:
                 return self.dead_reward  # (2)
 
-            return 0  # (3)
+            step_rew = self.get_valid_ratio(self.active_pl)
+            step_rew -= sum([self.get_valid_ratio((self.active_pl + i) % self.n_pl) for i in range(1, self.n_pl)])/(self.n_pl - 1)
+            step_rew += self.get_last_p_score()/5
+            return step_rew  # (3)
 
         elif self.action_mode == 'multi_discrete':
             # returns the reward summing the following contributions:
@@ -360,6 +370,8 @@ class BlokusEnv(gym.Env):
             # playing board -> padded board
             r_id = row + self.pad
             c_id = col + self.pad
+            # saves p_id as last piece placed
+            self.last_p_id = p_id
 
             # POV is cycled in increasing order of player id, e.g. active_player = 2; pl_pov = [2, 3, 0, 1]
             pl_pov = self.active_pl
@@ -432,8 +444,7 @@ class BlokusEnv(gym.Env):
             # updates active player and move count
             # 0 -> 1, ..., 3 -> 0
             self.active_pl = (self.active_pl + 1) % self.n_pl
-            self.move_count += 1
-            self.last_p_id = p_id
+            self.move_count += 1            
 
             # renders only valid moves or moves of dead players
             if not self.kill_if_invalid_move:
@@ -535,6 +546,8 @@ class BlokusEnv(gym.Env):
                 self.d + self.pad, self.d + self.pad, i] = 3  # start attachment point player 3, for each POV
             # start attachment point player 4, for each POV
             self.pad_board[self.d + self.pad, self.pad - 1, i] = 4
+        # id of the last placed piece, mainly used for rewarding
+        self.last_p_id = -1
 
         if self.action_mode == 'discrete_masked':
             # initialize valid starting action for each player, from their POV only (this means they are the same for all players)

@@ -50,7 +50,13 @@ class BlokusSeer(BaseFeaturesExtractor):
         return feats
 
 
-class RandomPolicy(BaseModel):
+class RandomPolicyDiscrete(BaseModel):
     def predict(self, obs, mask=None):
-        action = self.action_space.sample(mask=mask) # (mask=np.array(mask, dtype=np.int8))
+        action = self.action_space.sample(mask=np.array(mask, dtype=np.int8))
         return action
+
+class RandomPolicyMultiDiscrete(BaseModel):
+    def predict(self, obs, mask=None):
+        action = self.action_space.sample(mask=mask)
+        return action
+

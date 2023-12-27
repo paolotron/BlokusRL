@@ -12,7 +12,7 @@ from stable_baselines3.common.env_util import Monitor
 from environments.SelfPlayBlokusEnv import SelfPlayBlokusEnv
 from stable_baselines3.common.vec_env.subproc_vec_env import SubprocVecEnv
 
-from policy import RandomPolicy, BlokusSeer
+from policy import RandomPolicyDiscrete, RandomPolicyMultiDiscrete, BlokusSeer
 from wandb.integration.sb3 import WandbCallback
 
 
@@ -25,29 +25,36 @@ def get_policy_kwargs(feature_extractor):
 
 def get_random_policy(action_mode):
     if action_mode == 'discrete_masked':
-        player = RandomPolicy(
+        player = RandomPolicyDiscrete(
             action_space=spaces.Discrete(67200),
             observation_space=spaces.Discrete(67200)
-            )
+        )
     elif action_mode == 'multi_discrete':
-        player = RandomPolicy(
+        player = RandomPolicyMultiDiscrete(
             action_space=spaces.MultiDiscrete([400, 21, 8]),
             observation_space=spaces.MultiDiscrete([400, 21, 8])
-            )
+        )
     return player
 
 
-def main(envs=8, n_steps=50000, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False, action_mode='multi_discrete'):
+def main(envs=8, n_steps=50000, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False, action_mode='discrete_masked'):
     # action_mode can be 'discrete_masked' or 'multi_discrete'
     player = get_random_policy(action_mode)
     env_kwargs = {
         'render_mode': None,
         'action_mode': action_mode
     }
-    if envs > 0:
-        env = SubprocVecEnv(env_fns=[lambda: Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, **env_kwargs))] * envs)
+    if action_mode == 'discrete_masked':
+        compet = 'model'
     else:
-        env = Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, **env_kwargs))
+        compet = 'random'
+
+    if envs > 0:
+        env = SubprocVecEnv(env_fns=[lambda: Monitor(SelfPlayBlokusEnv(
+            p2=player, p3=player, p4=player, competitors=compet, **env_kwargs))] * envs)
+    else:
+        env = Monitor(SelfPlayBlokusEnv(p2=player, p3=player,
+                      p4=player, competitors=compet, **env_kwargs))
 
     model = MaskablePPO(
         policy='MultiInputPolicy',
@@ -59,7 +66,7 @@ def main(envs=8, n_steps=50000, batch_size=256, lr=1e-4, feature_extractor='defa
         verbose=1,
         tensorboard_log=f'./log/{exp_name}'
     )
-    
+
     if wandb_log:
         model.learn(
             total_timesteps=n_steps,
@@ -69,12 +76,14 @@ def main(envs=8, n_steps=50000, batch_size=256, lr=1e-4, feature_extractor='defa
         )
     else:
         model.learn(total_timesteps=n_steps)
-    
+
     model.save(f'./logs/{exp_name}')
     env.close()
     env_kwargs['render_mode'] = 'human'
-    env = Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, **env_kwargs))
-    rew, l = evaluate_policy(model, env, n_eval_episodes=50, render='human', return_episode_rewards=True)
+    env = Monitor(SelfPlayBlokusEnv(
+        p2=player, p3=player, p4=player, **env_kwargs))
+    rew, l = evaluate_policy(
+        model, env, n_eval_episodes=50, render='human', return_episode_rewards=True)
     win_rate = np.mean(np.array(rew) > env.get_wrapper_attr('win_reward'))
     print("AVERAGE REWARD: ", rew, "WIN RATE:", win_rate)
 
