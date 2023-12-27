@@ -61,7 +61,7 @@ def main():
         if action_mode == 'discrete_masked':
             n_iter = int(blokus_game.n_pieces*blokus_game.n_pl)
         elif action_mode == 'multi_discrete':
-            n_iter = 10000
+            n_iter = 1000
             state_list = []  # list of action validity
             n_valid = np.zeros((n_iter, 6))  # counter for invalid actions
 
@@ -83,37 +83,43 @@ def main():
                     action = act_id[adm_a_id]
                 else:
                     action = None
+                
+                # simulation step
+                obs, rew, term, trunc, info = blokus_game.step(action)
+                
+                # boolean mask of each player's valid action
+                valid_masks = info['valid_masks']
+                active_pl = info['active_player']  # active player
+
+                # update reward
+                if i < 4:
+                    rew_tot[int(i/4), (active_pl - 1) % 4] = rew
+                else:
+                    rew_tot[int(i/4), (active_pl - 1) %
+                            4] = rew_tot[int(i/4) - 1, (active_pl - 1) % 4] + rew
+
+                # exit condition
+                if term:
+                    print('Last player: ',  (active_pl - 1) %
+                        4, '    Last Reward: ', rew)
+                    rew_tot[int(i/4), rew_tot[int(i/4), :] ==
+                            0] = rew_tot[int(i/4) - 1, rew_tot[int(i/4), :] == 0]
+                    break
 
             elif action_mode == 'multi_discrete':
                 # totally random action
-                action = np.array([
-                    np.random.randint(0, blokus_game.d*blokus_game.d),
-                    np.random.randint(0, blokus_game.n_pieces),
-                    np.random.randint(0, blokus_game.n_variant)
-                ])
+                a_mask = np.int8(blokus_game.action_masks())
+                mask = (a_mask[0:d_board**2], a_mask[d_board**2:d_board**2 + 21], a_mask[d_board**2 + 21:])
+                action = blokus_game.action_space.sample(mask=mask)
                 # resuscitate dead players
-                blokus_game.dead[blokus_game.active_pl] = False
+                # blokus_game.dead[blokus_game.active_pl] = False
 
-            # simulation step
-            obs, rew, term, trunc, info = blokus_game.step(action)
-            # boolean mask of each player's valid action
-            valid_masks = info['valid_masks']
-            active_pl = info['active_player']  # active player
-
-            # update reward
-            if i < 4:
-                rew_tot[int(i/4), (active_pl - 1) % 4] = rew
-            else:
-                rew_tot[int(i/4), (active_pl - 1) %
-                        4] = rew_tot[int(i/4) - 1, (active_pl - 1) % 4] + rew
-
-            # exit condition
-            if term:
-                print('Last player: ',  (active_pl - 1) %
-                      4, '    Last Reward: ', rew)
-                rew_tot[int(i/4), rew_tot[int(i/4), :] ==
-                        0] = rew_tot[int(i/4) - 1, rew_tot[int(i/4), :] == 0]
-                break
+                # simulation step
+                blokus_game.random_step()
+                
+                if blokus_game.all_dead():
+                    break
+             
 
         # time estimation
         elapsed = tm.time() - t_0

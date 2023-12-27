@@ -37,7 +37,7 @@ def get_random_policy(action_mode):
     return player
 
 
-def main(envs=0, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False, action_mode='multi_discrete'):
+def main(envs=8, n_steps=50000, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False, action_mode='multi_discrete'):
     # action_mode can be 'discrete_masked' or 'multi_discrete'
     player = get_random_policy(action_mode)
     env_kwargs = {
@@ -72,8 +72,9 @@ def main(envs=0, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default
     
     model.save(f'./logs/{exp_name}')
     env.close()
+    env_kwargs['render_mode'] = 'human'
     env = Monitor(SelfPlayBlokusEnv(p2=player, p3=player, p4=player, **env_kwargs))
-    rew, l = evaluate_policy(model, env, n_eval_episodes=50, render=False, return_episode_rewards=True)
+    rew, l = evaluate_policy(model, env, n_eval_episodes=50, render='human', return_episode_rewards=True)
     win_rate = np.mean(np.array(rew) > env.get_wrapper_attr('win_reward'))
     print("AVERAGE REWARD: ", rew, "WIN RATE:", win_rate)
 
@@ -81,7 +82,7 @@ def main(envs=0, n_steps=10, batch_size=256, lr=1e-4, feature_extractor='default
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_steps', default=50000, type=int)
-    parser.add_argument('--envs', default=4, type=int)
+    parser.add_argument('--envs', default=8, type=int)
     parser.add_argument('--bs', default=256, type=int)
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--feature_extractor', default='default', type=str)

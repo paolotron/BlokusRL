@@ -1,19 +1,26 @@
 import pygame
+
 import numpy as np
 from numpy import logical_and as np_and
 from numpy import logical_or as np_or
+
 from functools import wraps
 import time
-import torch.nn.functional as f
+
 import torch
+import torch.nn.functional as f
 import gymnasium as gym
 from gymnasium import spaces
+
 from environments.preprocessing_id import preprocess_id
 from environments.preprocessing_action import preprocess_action
+
 from matplotlib import use as plt_use
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+import random
 from itertools import product
 
 
@@ -24,18 +31,20 @@ def timeit(func):
         result = func(*args, **kwargs)
         end_time = time.perf_counter()
         total_time = end_time - start_time
-        print(
-            f'Function {func.__name__}{args} {kwargs} Took {1000*total_time:.4f} ms')
+        # print(f'Function {func.__name__}{args} {kwargs} Took {1000*total_time:.4f} ms')
+        print(f'Function {func.__name__} Took {1000*total_time:.4f} ms')
         return result
     return timeit_wrapper
 
 class BlokusEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 8}
 
-    def __init__(self, action_mode='discrete_masked', render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=1000,
+    def __init__(self, action_mode='discrete_masked', render_mode=None, d_board=20, win_width=640 * 2, win_height=480 * 2, win_reward=100,
                  invalid_reward=-1, dead_reward=-1):
 
-        # two possible action spaces: 'discrete_masked' (uses action masking) or 'multi_discrete'
+        # two possible action spaces: 
+        #   'discrete_masked' (uses exact action masking)
+        #   'multi_discrete' (uses approximate action masking)
         assert action_mode in ['discrete_masked', 'multi_discrete']
         self.action_mode = action_mode
 
@@ -53,6 +62,7 @@ class BlokusEnv(gym.Env):
         # [< 0] penalty for performing an invalid action (with masking should not be relevant)
         self.invalid_reward = invalid_reward
         self.dead_reward = dead_reward  # [< 0] penalty for being dead early
+        self.kill_if_invalid_move = True  # wether step method kills player after invalid move
         # pygame and rendering attributes
         assert render_mode is None or render_mode in self.metadata['render_modes']
         self.render_mode = render_mode
@@ -68,7 +78,7 @@ class BlokusEnv(gym.Env):
             ListedColormap(np.vstack((self.rgb_col[0, :], np.roll(
                 self.rgb_col[1:self.n_pl + 1], -i, axis=0), self.rgb_col[-1, :])))
             for i in range(self.n_pl)
-        ]
+        ]        
 
         # --- resettable ---
         # boolean array, in the i-th is True if the i-th player can no longer place pieces
@@ -108,6 +118,8 @@ class BlokusEnv(gym.Env):
             # start attachment point player 4, for each POV
             self.pad_board[
                 self.d + self.pad, self.pad - 1, i] = 4
+        # id of the last placed piece, mainly used for rewarding
+        self.last_p_id = -1
 
         # --- observation ---
         #   board is the playing board where 0 = empty, 1-4 = player square
@@ -205,7 +217,15 @@ class BlokusEnv(gym.Env):
         count_pos_squares = self.piece_data[1]
         # ids of all placed pieces
         placed_pieces_id = np.where(~self.player_hands[player, :, 0])
+        # variant is irrelevant, can be set to 0
         return np.sum(count_pos_squares[placed_pieces_id, 0])
+    
+    def get_last_p_score(self):
+        # returns the squares of the last piece placed
+        # number of squares in each piece
+        count_pos_squares = self.piece_data[1]
+        # variant is irrelevant, can be set to 0
+        return np.sum(count_pos_squares[self.last_p_id, 0])
 
     def get_n_valid(self, player):
         # returns the number of valid actions remaining to player [0 - 3]
@@ -246,7 +266,7 @@ class BlokusEnv(gym.Env):
             # returns the reward summing the following contributions:
             # (0) invalid_reward (<< 0) in case of invalid move
             # (1) win_reward (>> 0) in case of win condition (all pieces placed)
-            # (2) sum of placed blocks (> 0) in every other case (could be changed from 'sum of placed blocks' to 'current placed block')
+            # (2) squares of last placed piece / 5 (> 0) in every other case
             # TODO: better tie breakers
 
             if self.invalid:
@@ -256,7 +276,7 @@ class BlokusEnv(gym.Env):
                 self.end_game = True
                 return self.win_reward  # (1)
 
-            return 1  # self.get_score(self.active_pl)  # (3)
+            return self.get_last_p_score()/5  # (2)
 
     def _get_terminated(self):
         # returns True in case of win condition (all pieces placed or all dead except for active player) or every player is dead
@@ -299,27 +319,31 @@ class BlokusEnv(gym.Env):
                 'move_count': self.move_count
             }
 
+    # @timeit
     def action_masks(self):
         if self.action_mode == 'discrete_masked':
-            # return the mask of the valid action of the active player as an array of bool (True = valid action)
+            # returns the mask of the valid action of the active player as an array of bool (True = valid action)
             return self.valid_act_mask[self.active_pl, :]
         elif self.action_mode == 'multi_discrete':
-            # return an incomplete mask of the valid action (some actions will still be invalid unfortunately)
-            board = self.pad_board[:, : , self.active_pl] == (self.active_pl + 1)  # board is 1 only where the active player has placed squares
+            # returns an approximate mask of the valid action (some actions will still be invalid unfortunately)
+            # saves True in board where the active player has squares already placed (pad_board == 1, from his POV)
+            board = self.pad_board[:, : , self.active_pl] == (0 + 1)
             board = torch.tensor(board[None, None, ...])  # adding 2 dimensions
             weight = torch.tensor([[[[1, -10, 1], [-10, -10, -10], [1, -10, 1]]]])  # convolution kernel
-            board_conv = f.conv2d(board.float(), weight.float(), stride=1, padding=1).numpy()  # convolution                        
-            # valid positions: 
+            board_conv = f.conv2d(board.float(), weight.float(), stride=1, padding=1).numpy()  # convolution with torch                     
+            # valid positions (and):
+            #   positive convolution result (board_conv > 0)
+            #   pad_board not occupied ny other pieces (pad_board == 0)
             valid_row_col = np_and(
                 board_conv[0, 0, self.pad:-self.pad, self.pad:-self.pad] > 0, 
                 self.pad_board[self.pad:-self.pad, self.pad:-self.pad, self.active_pl] == 0
             )
-            
-            valid_row_col = np.ndarray.flatten(valid_row_col)  # 400 in std game
+            valid_row_col_flat = np.ndarray.flatten(valid_row_col)  # 400 in std game
             valid_pieces = self.player_hands[self.active_pl, :, 0]  # 21 in standard game
             valid_orient = np.ones((self.n_variant, ), dtype='bool')  # 8 in standard game
-            return np.concatenate((valid_row_col, valid_pieces, valid_orient))
+            return np.concatenate((valid_row_col_flat, valid_pieces, valid_orient))
 
+    # @timeit
     def step(self, action):
         # computes a simulation step, given an action and returns observation and info, behaviour depends on action_mode
 
@@ -350,8 +374,10 @@ class BlokusEnv(gym.Env):
                     self.player_hands[:, :, pl_pov], self.n_pl, *self.piece_data)
 
                 if self.invalid:
-                    # active_player is dead due to an invalid move
-                    self.dead[self.active_pl] = True
+                    # invalid move played
+                    if self.kill_if_invalid_move:
+                        # active_player is dead due to an invalid move
+                        self.dead[self.active_pl] = True
                     break
 
                 # rotates 90 deg counter-clockwise row and col
@@ -399,7 +425,7 @@ class BlokusEnv(gym.Env):
 
         # calculates reward before updating active player and move count
         reward = self._get_reward()
-
+        
         # in case of a dead active player or a valid move
         if self.dead[self.active_pl] or not self.invalid:
 
@@ -407,10 +433,12 @@ class BlokusEnv(gym.Env):
             # 0 -> 1, ..., 3 -> 0
             self.active_pl = (self.active_pl + 1) % self.n_pl
             self.move_count += 1
+            self.last_p_id = p_id
 
             # renders only valid moves or moves of dead players
-            if self.render_mode == 'human':
-                self._render_frame()
+            if not self.kill_if_invalid_move:
+                if self.render_mode == 'human':
+                    self._render_frame()
 
         # get return information after updating the active player
         terminated = self._get_terminated()
@@ -432,28 +460,44 @@ class BlokusEnv(gym.Env):
         # (5)
         self.valid_act_mask[pl_pov, self.invalid_history[pl_pov, :]] = False
 
+    # @timeit
     def random_step(self, seed=None):
-
-        if self.dead[self.active_pl]:
+        # perform a random step checking all possible actions;
+        # these actions are generated as the cartesian product (combinations)
+        # of masked tiles, pieces and orientations;
+        # if no action were valid the player is dead
+        
+        # action mode must be 'multi_discrete'
+        assert self.action_mode in 'multi_discrete'            
+        
+        if self.dead[self.active_pl]:            
+            # if active_pl is dead it does not take an action and is skipped 
+            self.active_pl = (self.active_pl + 1) % self.n_pl
+            self.move_count += 1
             return
 
         m = self.action_masks()
-        tile = np.argwhere(m[:400])
-        pieces = np.argwhere(m[400:421])
-        orientations = np.argwhere(m[421:429])
+        # possible actions
+        tile = np.argwhere(m[:400]).tolist()
+        pieces = np.argwhere(m[400:421]).tolist()
+        orientations = np.argwhere(m[421:429]).tolist()
+        # randomly shuffles the arrays, otherwise cartesian product is always the same
+        tile = random.sample(tile, len(tile))
+        pieces = random.sample(pieces, len(pieces))
+        orientations = random.sample(orientations, len(orientations))
         
+        self.kill_if_invalid_move = False  # temporary disable killings
         for t, p, o in product(tile, pieces, orientations):
-            _, _, _, wrong, _ = self.step(np.concatenate([t, p, o], dtype=np.int64))
+            # calling step method of the current class (not child's methods)
+            _, _, _, wrong, _ = __class__.step(self, np.concatenate([t, p, o], dtype=np.int64))
             if not wrong:
                 break
         else:
-            self.dead[self.active_pl] = 1
+            # not a single valid move is found, thus the active_pl is dead
+            self.dead[self.active_pl] = True
             self.active_pl = (self.active_pl + 1) % self.n_pl
             self.move_count += 1
-
-            # renders only valid moves or moves of dead players
-            if self.render_mode == 'human':
-                self._render_frame()
+        self.kill_if_invalid_move = True  # enable killings again    
         
         return
 
@@ -524,6 +568,7 @@ class BlokusEnv(gym.Env):
         else:
             plt.ioff()  # prevents the display of plots
 
+        plt.suptitle('Move count : %d - Active player: %d' % (self.move_count, self.active_pl))
         for i, ax in zip([0, 1, 3, 2], axs.flat):
             # compute current score (without win bonuses)
             placed_pieces_id = np.where(~self.player_hands[i, :, 0])
@@ -549,8 +594,8 @@ class BlokusEnv(gym.Env):
                 ax.matshow(bkg, cmap=c_bkg)
                 ax.matshow(plot_board, cmap=self.cmap[i])
             ax.set_aspect('equal', adjustable='box')
-            ax.set_title('Pl %d POV - Score: %d - Pieces: %d' %
-                         (i, score, tot_pieces), fontsize=12)
+            ax.set_title('Pl %d POV - Score: %d - Pieces: %d - Dead: %d' %
+                         (i, score, tot_pieces, self.dead[i]), fontsize=12)
             ax.axis('off')
 
     def render(self):
@@ -579,6 +624,7 @@ class BlokusEnv(gym.Env):
         canvas_plt.draw()  # draw the canvas, cache the renderer
         image_flat = np.frombuffer(
             canvas_plt.tostring_rgb(), dtype='uint8')  # (H * W * 3,)
+        plt.close('all')  # closes all open figures
         # reversed converts (W, H) from get_width_height to (H, W)
         # (H, W, 3) usable with plt.imshow()
         image = image_flat.reshape(*reversed(canvas_plt.get_width_height()), 3)
@@ -612,6 +658,7 @@ def rot90_row_col(row, col, d):
     return d - col - 1, row
 
 
+# @timeit
 def next_state(row, col, p_id, var_id, padded_board, player_id, player_hands, n_players,
                position_square, count_pos_squares, position_attach, count_pos_attach, position_forbid,
                count_pos_forbid):
