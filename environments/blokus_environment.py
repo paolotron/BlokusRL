@@ -128,7 +128,7 @@ class BlokusEnv(gym.Env):
         #   invalid is a flag for the validity of the played action (0 = valid, 1-3 = invalid)
         self.observation_space = spaces.Dict(
             {
-                'board': spaces.MultiBinary((self.d, self.d, self.n_pl)),
+                'board': spaces.MultiBinary((self.n_pl, self.d, self.d)),
                 'hands': spaces.MultiBinary((self.n_pl, self.n_pieces)),
                 'turn': spaces.Box(0, self.n_pieces - 1, dtype='int'),
                 'invalid': spaces.Box(0, 4, dtype='int')
@@ -303,8 +303,11 @@ class BlokusEnv(gym.Env):
             self.pad: self.d + self.pad,
             self.active_pl
         ]
+        # 20 x 20 integer [0-4] -> 20 x 20 x 4 binary
         multibin_playing_board = np.vstack((np.zeros((1, self.n_pl), dtype=np.int8), np.eye(self.n_pl, dtype=np.int8)))[
             multibin_playing_board]
+        # formats according to image convention C x H x W
+        multibin_playing_board = np.moveaxis(multibin_playing_board, 2, 0)
         return {
             'board': multibin_playing_board,
             'hands': self.player_hands[:, :, self.active_pl],
@@ -337,7 +340,7 @@ class BlokusEnv(gym.Env):
         elif self.action_mode == 'multi_discrete':
             # returns an approximate mask of the valid action (some actions will still be invalid unfortunately)
             # saves True in board where the active player has squares already placed (pad_board == 1, from his POV)
-            board = self.pad_board[:, : , self.active_pl] == (0 + 1)
+            board = self.pad_board[:, :, self.active_pl] == (0 + 1)
             board = torch.tensor(board[None, None, ...])  # adding 2 dimensions
             weight = torch.tensor([[[[1, -10, 1], [-10, -10, -10], [1, -10, 1]]]])  # convolution kernel
             board_conv = f.conv2d(board.float(), weight.float(), stride=1, padding=1).numpy()  # convolution with torch                     

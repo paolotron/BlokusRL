@@ -24,8 +24,8 @@ def main():
     # numpy random seed for random number generator
     np_seed = 0
     # action mode ('discrete_masked' or 'multi_discrete')
-    action_mode = 'discrete_masked'
-    # action_mode = 'multi_discrete'
+    # action_mode = 'discrete_masked'
+    action_mode = 'multi_discrete'
 
     # ----- MAIN -----
 
