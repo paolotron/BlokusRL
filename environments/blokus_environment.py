@@ -447,9 +447,9 @@ class BlokusEnv(gym.Env):
             # updates active player and move count
             # 0 -> 1, ..., 3 -> 0
             self.active_pl = (self.active_pl + 1) % self.n_pl
-            self.move_count += 1            
+            self.move_count += 1        
 
-            # renders only valid moves or moves of dead players
+            # renders only when not in 'kill_if_invalid_move' mode 
             if not self.kill_if_invalid_move:
                 if self.render_mode == 'human':
                     self._render_frame()

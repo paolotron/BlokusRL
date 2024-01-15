@@ -1,0 +1,362 @@
+wandb_version: 1
+
+n_steps:
+  desc: null
+  value: 5000000
+envs:
+  desc: null
+  value: 8
+bs:
+  desc: null
+  value: 256
+lr:
+  desc: null
+  value: 0.0001
+feature_extractor:
+  desc: null
+  value: default
+exp_name:
+  desc: null
+  value: multi_discrete
+load:
+  desc: null
+  value: null
+wandb:
+  desc: null
+  value: true
+_wandb:
+  desc: null
+  value:
+    python_version: 3.8.10
+    cli_version: 0.16.1
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1704747788.611982
+    t:
+      1:
+      - 1
+      - 55
+      2:
+      - 1
+      - 55
+      3:
+      - 13
+      - 16
+      - 22
+      - 23
+      - 35
+      4: 3.8.10
+      5: 0.16.1
+      8:
+      - 3
+      - 5
+      13: windows-amd64
+algo:
+  desc: null
+  value: MaskablePPO
+policy_class:
+  desc: null
+  value: <class 'sb3_contrib.common.maskable.policies.MaskableMultiInputActorCriticPolicy'>
+device:
+  desc: null
+  value: cuda
+verbose:
+  desc: null
+  value: 1
+policy_kwargs:
+  desc: null
+  value: '{}'
+num_timesteps:
+  desc: null
+  value: 0
+_total_timesteps:
+  desc: null
+  value: 5000000
+_num_timesteps_at_start:
+  desc: null
+  value: 0
+seed:
+  desc: null
+  value: None
+action_noise:
+  desc: null
+  value: None
+start_time:
+  desc: null
+  value: 1704747809027178500
+learning_rate:
+  desc: null
+  value: 0.0001
+tensorboard_log:
+  desc: null
+  value: ./log/multi_discrete
+_last_obs:
+  desc: null
+  value: "OrderedDict([('board', array([[[[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]]],\n\n\n       [[[0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n   \
+    \      [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]]],\n\n\n       [[[0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n   \
+    \      [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]]],\n\n\n       ...,\n\n\n       [[[0, 0, 0, ..., 0, 0, 0],\n\
+    \         [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n      \
+    \   ...,\n         [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n\
+    \         [0, 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n   \
+    \      [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n\
+    \         [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n      \
+    \   [0, 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n   \
+    \      [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]]],\n\n\n       [[[0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n   \
+    \      [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]]],\n\n\n       [[[0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n   \
+    \      [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]],\n\n        [[0, 0, 0, ..., 0, 0, 0],\n         [0, 0,\
+    \ 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         ...,\n      \
+    \   [0, 0, 0, ..., 0, 0, 0],\n         [0, 0, 0, ..., 0, 0, 0],\n         [0,\
+    \ 0, 0, ..., 0, 0, 0]]]], dtype=int8)), ('hands', array([[[ True,  True,  True,\
+    \  True,  True,  True,  True,  True,  True,\n          True,  True,  True,  True,\
+    \  True,  True,  True,  True,  True,\n          True,  True,  True],\n       \
+    \ [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n          True,\
+    \  True,  True,  True,  True,  True,  True,  True,  True,\n          True,  True,\
+    \  True],\n        [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n\
+    \          True,  True,  True,  True,  True,  True,  True,  True,  True,\n   \
+    \       True,  True,  True],\n        [ True,  True,  True,  True,  True,  True,\
+    \  True,  True,  True,\n          True,  True,  True,  True,  True,  True,  True,\
+    \  True,  True,\n          True,  True,  True]],\n\n       [[ True,  True,  True,\
+    \  True,  True,  True,  True,  True,  True,\n          True,  True,  True,  True,\
+    \  True,  True,  True,  True,  True,\n          True,  True,  True],\n       \
+    \ [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n          True,\
+    \  True,  True,  True,  True,  True,  True,  True,  True,\n          True,  True,\
+    \  True],\n        [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n\
+    \          True,  True,  True,  True,  True,  True,  True,  True,  True,\n   \
+    \       True,  True,  True],\n        [ True,  True,  True,  True,  True,  True,\
+    \  True,  True,  True,\n          True,  True,  True,  True,  True,  True,  True,\
+    \  True,  True,\n          True,  True,  True]],\n\n       [[ True,  True,  True,\
+    \  True,  True,  True,  True,  True,  True,\n          True,  True,  True,  True,\
+    \  True,  True,  True,  True,  True,\n          True,  True,  True],\n       \
+    \ [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n          True,\
+    \  True,  True,  True,  True,  True,  True,  True,  True,\n          True,  True,\
+    \  True],\n        [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n\
+    \          True,  True,  True,  True,  True,  True,  True,  True,  True,\n   \
+    \       True,  True,  True],\n        [ True,  True,  True,  True,  True,  True,\
+    \  True,  True,  True,\n          True,  True,  True,  True,  True,  True,  True,\
+    \  True,  True,\n          True,  True,  True]],\n\n       [[ True,  True,  True,\
+    \  True,  True,  True,  True,  True,  True,\n          True,  True,  True,  True,\
+    \  True,  True,  True,  True,  True,\n          True,  True,  True],\n       \
+    \ [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n          True,\
+    \  True,  True,  True,  True,  True,  True,  True,  True,\n          True,  True,\
+    \  True],\n        [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n\
+    \          True,  True,  True,  True,  True,  True,  True,  True,  True,\n   \
+    \       True,  True,  True],\n        [ True,  True,  True,  True,  True,  True,\
+    \  True,  True,  True,\n          True,  True,  True,  True,  True,  True,  True,\
+    \  True,  True,\n          True,  True,  True]],\n\n       [[ True,  True,  True,\
+    \  True,  True,  True,  True,  True,  True,\n          True,  True,  True,  True,\
+    \  True,  True,  True,  True,  True,\n          True,  True,  True],\n       \
+    \ [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n          True,\
+    \  True,  True,  True,  True,  True,  True,  True,  True,\n          True,  True,\
+    \  True],\n        [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n\
+    \          True,  True,  True,  True,  True,  True,  True,  True,  True,\n   \
+    \       True,  True,  True],\n        [ True,  True,  True,  True,  True,  True,\
+    \  True,  True,  True,\n          True,  True,  True,  True,  True,  True,  True,\
+    \  True,  True,\n          True,  True,  True]],\n\n       [[ True,  True,  True,\
+    \  True,  True,  True,  True,  True,  True,\n          True,  True,  True,  True,\
+    \  True,  True,  True,  True,  True,\n          True,  True,  True],\n       \
+    \ [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n          True,\
+    \  True,  True,  True,  True,  True,  True,  True,  True,\n          True,  True,\
+    \  True],\n        [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n\
+    \          True,  True,  True,  True,  True,  True,  True,  True,  True,\n   \
+    \       True,  True,  True],\n        [ True,  True,  True,  True,  True,  True,\
+    \  True,  True,  True,\n          True,  True,  True,  True,  True,  True,  True,\
+    \  True,  True,\n          True,  True,  True]],\n\n       [[ True,  True,  True,\
+    \  True,  True,  True,  True,  True,  True,\n          True,  True,  True,  True,\
+    \  True,  True,  True,  True,  True,\n          True,  True,  True],\n       \
+    \ [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n          True,\
+    \  True,  True,  True,  True,  True,  True,  True,  True,\n          True,  True,\
+    \  True],\n        [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n\
+    \          True,  True,  True,  True,  True,  True,  True,  True,  True,\n   \
+    \       True,  True,  True],\n        [ True,  True,  True,  True,  True,  True,\
+    \  True,  True,  True,\n          True,  True,  True,  True,  True,  True,  True,\
+    \  True,  True,\n          True,  True,  True]],\n\n       [[ True,  True,  True,\
+    \  True,  True,  True,  True,  True,  True,\n          True,  True,  True,  True,\
+    \  True,  True,  True,  True,  True,\n          True,  True,  True],\n       \
+    \ [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n          True,\
+    \  True,  True,  True,  True,  True,  True,  True,  True,\n          True,  True,\
+    \  True],\n        [ True,  True,  True,  True,  True,  True,  True,  True,  True,\n\
+    \          True,  True,  True,  True,  True,  True,  True,  True,  True,\n   \
+    \       True,  True,  True],\n        [ True,  True,  True,  True,  True,  True,\
+    \  True,  True,  True,\n          True,  True,  True,  True,  True,  True,  True,\
+    \  True,  True,\n          True,  True,  True]]])), ('invalid', array([[0],\n\
+    \       [0],\n       [0],\n       [0],\n       [0],\n       [0],\n       [0],\n\
+    \       [0]])), ('turn', array([[0],\n       [0],\n       [0],\n       [0],\n\
+    \       [0],\n       [0],\n       [0],\n       [0]]))])"
+_last_episode_starts:
+  desc: null
+  value: '[ True  True  True  True  True  True  True  True]'
+_last_original_obs:
+  desc: null
+  value: None
+_episode_num:
+  desc: null
+  value: 0
+use_sde:
+  desc: null
+  value: 'False'
+sde_sample_freq:
+  desc: null
+  value: -1
+_current_progress_remaining:
+  desc: null
+  value: 1.0
+_stats_window_size:
+  desc: null
+  value: 100
+ep_info_buffer:
+  desc: null
+  value: deque([], maxlen=100)
+ep_success_buffer:
+  desc: null
+  value: deque([], maxlen=100)
+_n_updates:
+  desc: null
+  value: 0
+_custom_logger:
+  desc: null
+  value: 'False'
+env:
+  desc: null
+  value: <stable_baselines3.common.vec_env.subproc_vec_env.SubprocVecEnv object at
+    0x00000230F8F27DF0>
+_vec_normalize_env:
+  desc: null
+  value: None
+observation_space:
+  desc: null
+  value: 'Dict(''board'': MultiBinary((4, 20, 20)), ''hands'': MultiBinary((4, 21)),
+    ''invalid'': Box(0, 4, (1,), int32), ''turn'': Box(0, 20, (1,), int32))'
+action_space:
+  desc: null
+  value: MultiDiscrete([400  21   8])
+n_envs:
+  desc: null
+  value: 8
+gamma:
+  desc: null
+  value: 0.99
+gae_lambda:
+  desc: null
+  value: 0.95
+ent_coef:
+  desc: null
+  value: 0.0
+vf_coef:
+  desc: null
+  value: 0.5
+max_grad_norm:
+  desc: null
+  value: 0.5
+rollout_buffer_class:
+  desc: null
+  value: None
+rollout_buffer_kwargs:
+  desc: null
+  value: '{}'
+batch_size:
+  desc: null
+  value: 256
+n_epochs:
+  desc: null
+  value: 10
+clip_range:
+  desc: null
+  value: <function constant_fn.<locals>.func at 0x00000230F8F6F430>
+clip_range_vf:
+  desc: null
+  value: None
+normalize_advantage:
+  desc: null
+  value: 'True'
+target_kl:
+  desc: null
+  value: None
+lr_schedule:
+  desc: null
+  value: <function constant_fn.<locals>.func at 0x00000230F8F3ACA0>
+policy:
+  desc: null
+  value: "MaskableMultiInputActorCriticPolicy(\n  (features_extractor): CombinedExtractor(\n\
+    \    (extractors): ModuleDict(\n      (board): Flatten(start_dim=1, end_dim=-1)\n\
+    \      (hands): Flatten(start_dim=1, end_dim=-1)\n      (invalid): Flatten(start_dim=1,\
+    \ end_dim=-1)\n      (turn): Flatten(start_dim=1, end_dim=-1)\n    )\n  )\n  (pi_features_extractor):\
+    \ CombinedExtractor(\n    (extractors): ModuleDict(\n      (board): Flatten(start_dim=1,\
+    \ end_dim=-1)\n      (hands): Flatten(start_dim=1, end_dim=-1)\n      (invalid):\
+    \ Flatten(start_dim=1, end_dim=-1)\n      (turn): Flatten(start_dim=1, end_dim=-1)\n\
+    \    )\n  )\n  (vf_features_extractor): CombinedExtractor(\n    (extractors):\
+    \ ModuleDict(\n      (board): Flatten(start_dim=1, end_dim=-1)\n      (hands):\
+    \ Flatten(start_dim=1, end_dim=-1)\n      (invalid): Flatten(start_dim=1, end_dim=-1)\n\
+    \      (turn): Flatten(start_dim=1, end_dim=-1)\n    )\n  )\n  (mlp_extractor):\
+    \ MlpExtractor(\n    (policy_net): Sequential(\n      (0): Linear(in_features=1686,\
+    \ out_features=64, bias=True)\n      (1): Tanh()\n      (2): Linear(in_features=64,\
+    \ out_features=64, bias=True)\n      (3): Tanh()\n    )\n    (value_net): Sequential(\n\
+    \      (0): Linear(in_features=1686, out_features=64, bias=True)\n      (1): Tanh()\n\
+    \      (2): Linear(in_features=64, out_features=64, bias=True)\n      (3): Tanh()\n\
+    \    )\n  )\n  (action_net): Linear(in_features=64, out_features=429, bias=True)\n\
+    \  (value_net): Linear(in_features=64, out_features=1, bias=True)\n)"
+rollout_buffer:
+  desc: null
+  value: <sb3_contrib.common.maskable.buffers.MaskableDictRolloutBuffer object at
+    0x000002308232D700>
+_logger:
+  desc: null
+  value: <stable_baselines3.common.logger.Logger object at 0x00000230F8F659D0>
