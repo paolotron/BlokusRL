@@ -38,14 +38,14 @@ def get_random_policy(action_mode):
 
 
 def main(envs=8, n_steps=50000, batch_size=256, lr=1e-4, feature_extractor='default', exp_name='test', wandb_log=False,
-         action_mode='multi_discrete', env_mode='singleplayer'):
+         action_mode='multi_discrete', env_mode='singleplayer', d_board=20):
     # action_mode can be 'discrete_masked' or 'multi_discrete'
     # env_mode can be 'self_play' or 'singleplayer'
 
     env_kwargs = {
         'render_mode': None,
         'action_mode': action_mode,
-        'd_board': 20  # 20 default, how about 10 instead for singleplayer?
+        'd_board': d_board  # 20 default, how about 10 instead for singleplayer?
     }
 
     if env_mode == 'self_play':
@@ -112,7 +112,7 @@ def main(envs=8, n_steps=50000, batch_size=256, lr=1e-4, feature_extractor='defa
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_steps', default=5000000, type=int)
+    parser.add_argument('--n_steps', default=50000, type=int)
     parser.add_argument('--envs', default=8, type=int)
     parser.add_argument('--bs', default=256, type=int)
     parser.add_argument('--lr', default=1e-4, type=float)
@@ -122,6 +122,7 @@ if __name__ == '__main__':
     parser.add_argument('--wandb', action='store_true')
     parser.add_argument('--act_mode', default='multi_discrete', type=str)
     parser.add_argument('--env_mode', default='singleplayer', type=str)
+    parser.add_argument('--d_board', default=20, type=int)
     args = parser.parse_args()
 
     if args.wandb:
@@ -133,4 +134,4 @@ if __name__ == '__main__':
 
     main(n_steps=args.n_steps, envs=args.envs, batch_size=args.bs,
          lr=args.lr, exp_name=args.exp_name, feature_extractor=args.feature_extractor,
-         wandb_log=args.wandb, action_mode=args.act_mode, env_mode=args.env_mode)
+         wandb_log=args.wandb, action_mode=args.act_mode, env_mode=args.env_mode, d_board=args.d_board)
