@@ -276,7 +276,7 @@ class BlokusEnv(gym.Env):
             # returns the reward summing the following contributions:
             # (0) invalid_reward (<< 0) in case of invalid move
             # (1) win_reward (>> 0) in case of win condition (all pieces placed)
-            # (2) squares of last placed piece / 5 (> 0) in every other case
+            # (2) 1 in every other case
             # TODO: better tie breakers
 
             if self.invalid:
@@ -286,7 +286,7 @@ class BlokusEnv(gym.Env):
                 self.end_game = True
                 return self.win_reward  # (1)
 
-            return self.get_last_p_score()/5  # (2)
+            return 1  # self.get_last_p_score()/5  # (2)
 
     def _get_terminated(self):
         # returns True in case of win condition (all pieces placed or all dead except for active player) or every player is dead
